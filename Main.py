@@ -1,80 +1,89 @@
+import os
 import feedparser
 import requests
+import resend
 
-# Feed principal de referência (ex: ONU News em Inglês)
+# Configura a chave de API obtida de forma segura do GitHub Actions
+resend.api_key = os.getenv("RESEND_API_KEY")
+
 URL_FEED_BASE = "https://news.un.org/feed/subscribe/en/news/all/rss.xml"
 
 def validar_idiomas_disponiveis(link_base):
-    """
-    Testa se a mesma notícia possui versão oficial publicada 
-    em Português, Inglês, Espanhol e Francês alterando a estrutura da URL.
-    """
     idiomas = ["pt", "en", "es", "fr"]
     idiomas_disponiveis = {}
-    
-    # Identifica o padrão de idioma atual na URL de origem
     idioma_atual = None
+    
     for lang in idiomas:
         if f"/{lang}/" in link_base:
             idioma_atual = lang
             break
             
-    # Se a URL não seguir o padrão esperado, retorna ao menos a original
     if not idioma_atual:
         return {"en": link_base}
 
-    # Testa a existência da página para cada um dos 4 idiomas oficiais
     for lang in idiomas:
         url_candidata = link_base.replace(f"/{idioma_atual}/", f"/{lang}/")
-        
         try:
-            # Usa requisição HEAD para verificar o status sem baixar a página inteira
             response = requests.head(url_candidata, timeout=5, allow_redirects=True)
             if response.status_code == 200:
                 idiomas_disponiveis[lang] = url_candidata
             else:
-                # Fallback para GET caso o servidor bloqueie requisições HEAD
                 response_get = requests.get(url_candidata, timeout=5)
                 if response_get.status_code == 200:
                     idiomas_disponiveis[lang] = url_candidata
         except requests.RequestException:
-            # Caso o link não exista (ex: erro 404 de tradução ausente) ou falha de rede
             pass
             
     return idiomas_disponiveis
 
-def executar_varredura_diaria():
-    print("Iniciando varredura dos canais oficiais...")
+def executar_varredura():
     feed = feedparser.parse(URL_FEED_BASE)
+    relatorio = []
     
-    relatorio_diario = []
-
-    # Analisa as últimas 5 publicações do dia
-    for entry in feed.entries[:5]:
-        print(f"Verificando: {entry.title[:60]}...")
-        
-        # Mapeia quais idiomas possuem a versão oficial ativa
-        versoes_encontradas = validar_idiomas_disponiveis(entry.link)
-        
-        relatorio_diario.append({
+    for entry in feed.entries[:3]: # Pega as 3 principais do dia
+        versoes = validar_idiomas_disponiveis(entry.link)
+        relatorio.append({
             "titulo": entry.title,
             "data": entry.get("published", "Data não informada"),
-            "links_oficiais": versoes_encontradas
+            "links": versoes
         })
-        
-    return relatorio_diario
+    return relatorio
+
+def montar_html_relatorio(comunicados):
+    html = "<h2>📰 Relatório Diplomático Diário</h2><br>"
+    for idx, item in enumerate(comunicados, 1):
+        html += f"<b>{idx}. {item['titulo']}</b><br>"
+        html += f"<small>📅 {item['data']}</small><br>"
+        html += "<b>Links Oficiais:</b><ul>"
+        for lang, url in item['links'].items():
+            html += f"<li><a href='{url}'>[{lang.upper()}]</a></li>"
+        html += "</ul><hr>"
+    return html
+
+def enviar_email(corpo_html):
+    if not resend.api_key:
+        print("Chave de API do Resend não configurada.")
+        return
+
+    params = {
+        "from": "Agente Diplomático <onboarding@resend.dev>",
+        "to": ["robertobastos.arq@gmail.com"],
+        "subject": "Relatório Diplomático Diário - ONU / MRE",
+        "html": corpo_html,
+    }
+
+    try:
+        email = resend.Emails.send(params)
+        print("E-mail enviado com sucesso via Resend!", email)
+    except Exception as e:
+        print(f"Erro ao enviar e-mail: {e}")
 
 if __name__ == "__main__":
-    comunicados = executar_varredura_diaria()
+    print("Iniciando varredura...")
+    comunicados = executar_varredura()
     
-    print("\n" + "="*50)
-    print("RELATÓRIO DE DISCURSOS E NOTAS OFICIAIS NATIVAS")
-    print("="*50)
-    
-    for item in comunicados:
-        print(f"\n📌 Título: {item['titulo']}")
-        print(f"📅 Publicação: {item['data']}")
-        print("🔗 Links Oficiais Disponíveis por Idioma:")
-        for lang, url in item['links_oficiais'].items():
-            print(f"   - [{lang.upper()}]: {url}")
-        print("-" * 50)
+    if comunicados:
+        relatorio_html = montar_html_relatorio(comunicados)
+        enviar_email(relatorio_html)
+    else:
+        print("Nenhum comunicado encontrado hoje.")
