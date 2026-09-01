@@ -59,7 +59,7 @@ def verificar_reset_diario(username):
 verificar_reset_diario(str_lit.session_state["current_user"])
 
 # ==============================================================================
-# 4. ESTILOS CSS REFINADOS (IMAGENS EM ALTA RESOLUÇÃO E TIPOGRAFIA EDITORIAL)
+# 4. ESTILOS CSS REFINADOS (IMAGENS ADAPTADAS, ALTA RESOLUÇÃO E TIPOGRAFIA)
 # ==============================================================================
 str_lit.markdown("""
     <style>
@@ -206,7 +206,7 @@ str_lit.markdown("""
         display: block;
         max-width: 100% !important;
         height: auto !important;
-        max-height: 500px;
+        max-height: 520px;
         object-fit: contain;
         background-color: #F3F3F3;
         border-radius: 4px;
@@ -254,10 +254,10 @@ def get_stripe_class(categoria):
     else: return "aoc-stripe-mre"
 
 # ==============================================================================
-# 6. EXTRATOR ROBUSTO DE CONTEÚDO INTEGRAL (WEBSCRAPING COM FALLBACK DE PARÁGRAFOS)
+# 6. EXTRATOR INTELIGENTE E DETECTOR DE IDIOMAS NATIVOS DO SITE DE ORIGEM
 # ==============================================================================
 @str_lit.cache_data(ttl=3600)
-def raspar_conteudo_integral(url, fallback_content=""):
+def raspar_conteudo_e_idiomas(url):
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -267,7 +267,22 @@ def raspar_conteudo_integral(url, fallback_content=""):
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # Tenta encontrar blocos principais de portais governamentais e da ONU
+            # 1. Procura opções de links de idiomas nativos no site de origem (ex: alternar para ES, EN, FR na ONU)
+            idiomas_disponiveis = {}
+            for lang_link in soup.find_all('link', hreflang=True):
+                lang_code = lang_link.get('hreflang')
+                lang_href = lang_link.get('href')
+                if lang_code and lang_href:
+                    idiomas_disponiveis[lang_code.upper()] = lang_href
+
+            # Também busca botões comuns de menu de idiomas em portais oficiais
+            for a_tag in soup.select('ul.languages li a, .language-selector a, .region-language a, .lang-select a'):
+                texto_link = a_tag.get_text(strip=True).upper()
+                href_link = a_tag.get('href')
+                if href_link and len(texto_link) <= 5:
+                    idiomas_disponiveis[texto_link] = href_link
+
+            # 2. Varre o corpo principal da matéria
             corpo = (
                 soup.find('div', id='parent-fieldname-text') or 
                 soup.find('div', class_='field-name-body') or
@@ -278,28 +293,28 @@ def raspar_conteudo_integral(url, fallback_content=""):
                 soup.find('div', class_='entry-content')
             )
             
+            conteudo_html = ""
             if corpo:
                 for lixo in corpo(["script", "style", "nav", "header", "footer", "aside", "form"]):
                     lixo.extract()
-                return str(corpo)
-            
-            # Fallback aprimorado: Se os seletores principais falharem, captura todos os parágrafos relevantes da página
-            paragrafos_gerais = soup.find_all(['p', 'h2', 'h3', 'img'])
-            if paragrafos_gerais:
+                conteudo_html = str(corpo)
+            else:
+                # Fallback profundo: extrai todos os blocos de texto e imagens válidos da página
+                elementos = soup.find_all(['p', 'h2', 'h3', 'img', 'figure'])
                 container_dinamico = BeautifulSoup("<div></div>", "html.parser")
                 div_pai = container_dinamico.div
-                for p in paragrafos_gerais:
-                    # Evita lixos de rodapé comuns
-                    if any(termo in p.text.lower() for termo in ["todos os direitos reservados", "cookie", "política de privacidade"]):
+                for el in elementos:
+                    texto_el = el.get_text(strip=True).lower()
+                    if any(termo in texto_el for termo in ["todos os direitos reservados", "cookie", "política de privacidade", "newsletter"]):
                         continue
-                    div_pai.append(p)
-                return str(div_pai)
+                    div_pai.append(el)
+                conteudo_html = str(div_pai)
                 
+            return conteudo_html, idiomas_disponiveis
     except Exception:
         pass
-    
-    # Caso extremo: exibe o conteúdo completo do RSS limpo
-    return f"<div><p>{fallback_content}</p></div>"
+        
+    return "<p>Não foi possível carregar o conteúdo integral diretamente do site de origem.</p>", {}
 
 # ==============================================================================
 # 7. CARREGADOR DE FEEDS DE NOTÍCIAS E DOCUMENTOS
@@ -397,6 +412,9 @@ if article_id_param is not None:
         # Faixa colorida no topo (estilo AOC.media)
         str_lit.markdown(f'<div class="{stripe_classe}"></div>', unsafe_allow_html=True)
         
+        # Faz o scraping do conteúdo e busca as versões de idiomas nativos da página de origem
+        conteudo_bruto, idiomas_origem = raspar_conteudo_e_idiomas(artigo_atual['link'])
+        
         col_voltar, col_lang = str_lit.columns([3, 1])
         with col_voltar:
             if str_lit.button("← Voltar ao Repositório", use_container_width=False):
@@ -404,11 +422,17 @@ if article_id_param is not None:
                 str_lit.rerun()
         
         with col_lang:
-            idioma_selecionado = str_lit.selectbox(
-                "🌐 Idioma / Tradução", 
-                ["Português (PT)", "English (EN)", "Español (ES)", "Français (FR)"], 
-                key="select_lang"
-            )
+            if idiomas_origem:
+                lista_langs = ["Padrão (Origem)"] + list(idiomas_origem.keys())
+                lang_escolhida = str_lit.selectbox("🌐 Idiomas (Site Oficial)", lista_langs)
+                if lang_escolhida != "Padrão (Origem)" and lang_escolhida in idiomas_origem:
+                    # Se o usuário escolher outro idioma nativo, direciona para o link oficial daquele idioma
+                    link_idioma = idiomas_origem[lang_escolhida]
+                    if not link_idioma.startswith("http"):
+                        link_idioma = artigo_atual['link']
+                    str_lit.markdown(f'<meta http-equiv="refresh" content="0; url={link_idioma}">', unsafe_allow_html=True)
+            else:
+                str_lit.caption("🌐 Idioma original")
 
         str_lit.markdown("<br>", unsafe_allow_html=True)
         
@@ -426,19 +450,7 @@ if article_id_param is not None:
             </div>
         """, unsafe_allow_html=True)
         
-        # Extração do Conteúdo Completo
-        conteudo_bruto = raspar_conteudo_integral(artigo_atual['link'], artigo_atual['conteudo_rss'])
-        
-        # Notificação de Tradução
-        if "English" in idioma_selecionado:
-            str_lit.info("🌐 Exibindo conteúdo original em Inglês.")
-        elif "Español" in idioma_selecionado:
-            str_lit.info("🌐 Conteúdo adaptado para o Espanhol.")
-        elif "Français" in idioma_selecionado:
-            str_lit.info("🌐 Conteúdo adaptado para o Francês.")
-        else:
-            str_lit.info("🌐 Conteúdo completo e traduzido para o Português.")
-
+        # Exibição do Texto Completo Raspado com Imagens e Formatação Original
         str_lit.markdown(f"""
             <div class="article-container">
                 {conteudo_bruto}
