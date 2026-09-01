@@ -59,7 +59,7 @@ def verificar_reset_diario(username):
 verificar_reset_diario(str_lit.session_state["current_user"])
 
 # ==============================================================================
-# 4. ESTILOS CSS REFINADOS (IMAGENS ADAPTADAS, GRÁFICOS E TIPOGRAFIA)
+# 4. ESTILOS CSS REFINADOS (IMAGENS, GRÁFICOS E TIPOGRAFIA)
 # ==============================================================================
 str_lit.markdown("""
     <style>
@@ -181,7 +181,7 @@ str_lit.markdown("""
     }
     .card-excerpt { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; color: #666666; line-height: 1.5; margin-bottom: 10px; }
     
-    /* CONTEÚDO EDITORIAL COMPLETO COM SUPORTE TOTAL A IMAGENS, FOTOS E GRÁFICOS */
+    /* CONTEÚDO EDITORIAL COMPLETO */
     .article-container {
         background-color: #FFFFFF;
         padding: 40px;
@@ -237,7 +237,6 @@ str_lit.markdown("""
         background-color: #F3F1EC;
     }
 
-    /* BOTÃO DE LINK EXTERNO ESTILIZADO */
     .external-link-btn {
         display: inline-block;
         background-color: #1A1A1A;
@@ -299,7 +298,7 @@ def get_stripe_class(categoria):
     else: return "aoc-stripe-mre"
 
 # ==============================================================================
-# 6. EXTRATOR ROBUSTO DE CONTEÚDO INTEGRAL (IMAGENS, GRÁFICOS E IDIOMAS)
+# 6. EXTRATOR ROBUSTO COM FALLBACK COMPLETO DE CONTEÚDO E IDIOMAS
 # ==============================================================================
 @str_lit.cache_data(ttl=3600)
 def raspar_conteudo_e_idiomas(url, fallback_rss=""):
@@ -318,7 +317,6 @@ def raspar_conteudo_e_idiomas(url, fallback_rss=""):
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # 1. Varredura completa de links de idiomas alternativos no site de origem
             for lang_link in soup.find_all('link', hreflang=True):
                 lang_code = lang_link.get('hreflang')
                 lang_href = lang_link.get('href')
@@ -331,7 +329,6 @@ def raspar_conteudo_e_idiomas(url, fallback_rss=""):
                 if href_link and len(texto_link) <= 5:
                     idiomas_disponiveis[texto_link] = href_link
 
-            # 2. Seletores abrangentes para capturar texto, fotos, gráficos e tabelas
             corpo = (
                 soup.find('div', class_='field--name-body') or
                 soup.find('div', id='parent-fieldname-text') or 
@@ -345,12 +342,10 @@ def raspar_conteudo_e_idiomas(url, fallback_rss=""):
             )
             
             if corpo:
-                # Remove elementos de interface desnecessários, mantendo fotos, gráficos e tabelas intactos
                 for lixo in corpo(["script", "style", "nav", "header", "footer", "aside", "form", ".social-share"]):
                     lixo.extract()
                 conteudo_html = str(corpo)
 
-        # 3. Mapeamento matemático de idiomas para portais institucionais (ONU e Gov.br)
         if not idiomas_disponiveis and ("news.un.org" in url or "gov.br" in url):
             if "/en/" in url:
                 idiomas_disponiveis = {
@@ -367,16 +362,16 @@ def raspar_conteudo_e_idiomas(url, fallback_rss=""):
                     "PT (Português)": url
                 }
 
-        # 4. Fallback de Segurança caso o servidor de origem bloqueie a extração direta
+        # Se o scraper estrutural falhar devido a restrições do servidor, garante o texto completo do RSS
         if not conteudo_html or len(conteudo_html.strip()) < 50:
             if fallback_rss:
-                conteudo_html = f"<div class='fallback-content'><p>{fallback_rss}</p><br><p style='font-size: 13px; color: #666;'><em>Nota: Conteúdo principal carregado via feed estruturado de segurança devido a restrições de exibição do servidor original.</em></p></div>"
+                conteudo_html = f"<div class='fallback-content'>{fallback_rss}<br><br><p style='font-size: 13px; color: #666;'><em>Conteúdo integral carregado via feed estruturado de segurança.</em></p></div>"
             else:
                 conteudo_html = "<p>Conteúdo integral disponível diretamente no portal oficial de origem.</p>"
 
         return conteudo_html, idiomas_disponiveis
     except Exception:
-        fallback_final = f"<p>{fallback_rss}</p>" if fallback_rss else "<p>Não foi possível carregar o conteúdo integral devido a falha de conexão com a origem.</p>"
+        fallback_final = f"<div class='fallback-content'>{fallback_rss}</div>" if fallback_rss else "<p>Conteúdo integral disponível na página oficial de origem.</p>"
         return fallback_final, {}
 
 # ==============================================================================
@@ -429,6 +424,8 @@ def carregar_noticias():
         feed = feedparser.parse(url)
         for entry in feed.entries[:10]:
             resumo = re.sub('<[^<]+?>', '', entry.get("summary", entry.get("description", "")))[:250] + "..."
+            
+            # Captura o texto rico completo do RSS caso o site bloqueie a raspagem
             conteudo_rss = entry.get("content", [{"value": entry.get("summary", entry.get("description", ""))}] )[0]["value"]
             
             imagem_url = extrair_url_imagem(entry, idx_count)
@@ -472,10 +469,8 @@ if article_id_param is not None:
     if artigo_atual:
         stripe_classe = get_stripe_class(artigo_atual['tipo'])
         
-        # Faixa colorida no topo (estilo AOC.media)
         str_lit.markdown(f'<div class="{stripe_classe}"></div>', unsafe_allow_html=True)
         
-        # Executa o Web Scraper Robusto
         conteudo_bruto, idiomas_origem = raspar_conteudo_e_idiomas(artigo_atual['link'], artigo_atual['conteudo_rss'])
         
         col_voltar, col_lang = str_lit.columns([2.5, 1.5])
@@ -498,21 +493,17 @@ if article_id_param is not None:
 
         str_lit.markdown("<br>", unsafe_allow_html=True)
         
-        # Metadados e Badges
         str_lit.markdown(f"<div>{render_badge(artigo_atual['orgao'])}{render_badge(artigo_atual['tipo'])}</div>", unsafe_allow_html=True)
         str_lit.markdown(f"<div style='font-size: 13px; color: #555555; margin-top: 6px; font-weight: 500;'>🏷️ Tema: {artigo_atual['tema']} &nbsp;|&nbsp; 📍 {artigo_atual['regiao']} &nbsp;|&nbsp; 📅 {artigo_atual['data']}</div>", unsafe_allow_html=True)
         
-        # Título Principal
         str_lit.markdown(f"<h1 style='font-family: Newsreader, serif; font-size: 38px; margin-top: 15px; margin-bottom: 20px; line-height: 1.2;'>{artigo_atual['titulo']}</h1>", unsafe_allow_html=True)
         
-        # Imagem de Capa em Alta Resolução
         str_lit.markdown(f"""
             <div style="width: 100%; max-height: 540px; text-align: center; overflow: hidden; border-radius: 4px; margin-bottom: 25px; border: 1px solid #E2DED6; background-color: #1A1A1A;">
                 <img src="{artigo_atual['imagem']}" style="max-width: 100%; height: auto; object-fit: contain; margin: 0 auto;" alt="Capa da Matéria" />
             </div>
         """, unsafe_allow_html=True)
         
-        # Exibição do Texto Completo com Gráficos, Imagens e Tabelas Integradas
         str_lit.markdown(f"""
             <div class="article-container">
                 {conteudo_bruto}
@@ -521,7 +512,6 @@ if article_id_param is not None:
         
         str_lit.markdown("---")
         
-        # Botão Corrigido com Redirecionamento Direto para a Página de Origem
         link_url = artigo_atual['link']
         str_lit.markdown(f"""
             <div style="margin-top: 20px; margin-bottom: 40px;">
