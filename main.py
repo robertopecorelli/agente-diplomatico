@@ -1,0 +1,364 @@
+import streamlit as st
+import streamlit.components.v1 as components
+import feedparser
+from datetime import datetime, date
+import re
+import stripe
+
+# ==============================================================================
+# 1. CONFIGURAÇÃO DE SEGREDOS E STRIPE
+# ==============================================================================
+STRIPE_SECRET_KEY = st.secrets.get("STRIPE_SECRET_KEY", "sk_test_exemplo")
+STRIPE_PRICE_MONTHLY = st.secrets.get("STRIPE_PRICE_MONTHLY", "price_monthly_id")
+STRIPE_PRICE_YEARLY = st.secrets.get("STRIPE_PRICE_YEARLY", "price_yearly_id")
+DOMAIN_URL = st.secrets.get("DOMAIN_URL", "http://localhost:8501")
+
+stripe.api_key = STRIPE_SECRET_KEY
+
+# ==============================================================================
+# 2. CONFIGURAÇÃO DA PÁGINA STREAMLIT
+# ==============================================================================
+st.set_page_config(
+    page_title="Repositório Diplomático | Acervo CACD",
+    page_icon="🏛️",
+    layout="wide",
+    initial_sidebar_state="auto"
+)
+
+# ==============================================================================
+# 3. GERENCIAMENTO DE SESSÃO
+# ==============================================================================
+if "users_db" not in st.session_state:
+    st.session_state["users_db"] = {
+        "visitante": {"plan": "free", "access_count": 0, "last_date": str(date.today()), "email": ""}
+    }
+
+if "current_user" not in st.session_state:
+    st.session_state["current_user"] = "visitante"
+
+if "show_plans_modal" not in st.session_state:
+    st.session_state["show_plans_modal"] = False
+
+if "show_register_modal" not in st.session_state:
+    st.session_state["show_register_modal"] = False
+
+query_params = st.query_params
+if query_params.get("payment") == "success":
+    user = st.session_state.get("current_user", "visitante")
+    if user in st.session_state["users_db"]:
+        st.session_state["users_db"][user]["plan"] = "premium"
+    st.toast("🎉 Assinatura Premium confirmada com sucesso!", icon="✅")
+
+def verificar_reset_diario(username):
+    user_data = st.session_state["users_db"].get(username)
+    if user_data:
+        hoje_str = str(date.today())
+        if user_data.get("last_date") != hoje_str:
+            user_data["access_count"] = 0
+            user_data["last_date"] = hoje_str
+
+verificar_reset_diario(st.session_state["current_user"])
+
+def enviar_email_confirmacao(email_destino, nome_usuario):
+    st.toast(f"📧 E-mail de confirmação enviado para: {email_destino}", icon="📩")
+
+# ==============================================================================
+# 4. ESTILOS CSS PERSONALIZADOS (ESTÉTICA EDITORIAL + BADGES/ÍCONES)
+# ==============================================================================
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap');
+    @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+
+    html, body, [class*="stApp"] {
+        background-color: #F7F5F0 !important;
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        color: #1A1A1A !important;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'Newsreader', serif !important;
+        color: #1A1A1A !important;
+        letter-spacing: -0.02em;
+    }
+
+    section[data-testid="stSidebar"] {
+        background-color: #EFECE6 !important;
+        border-right: 1px solid #E2DED6;
+    }
+
+    .top-nav-btn button {
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        font-size: 11px !important;
+        padding: 6px 14px !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.05em !important;
+        border-radius: 2px !important;
+        height: 36px !important;
+        min-height: 0px !important;
+        text-transform: uppercase;
+        width: 100%;
+        color: #F0E6D2 !important;
+    }
+
+    .top-nav-btn-primary button {
+        background-color: #1A1A1A !important;
+        border: 1px solid #1A1A1A !important;
+    }
+    .top-nav-btn-primary button:hover {
+        background-color: #333333 !important;
+        color: #F7F5F0 !important;
+    }
+
+    .top-nav-btn-secondary button {
+        background-color: transparent !important;
+        border: 1px solid #1A1A1A !important;
+        color: #1A1A1A !important;
+    }
+    .top-nav-btn-secondary button:hover {
+        background-color: #1A1A1A !important;
+        color: #F7F5F0 !important;
+    }
+
+    /* SISTEMA DE TAGS / BADGES ESTILO EDITORIAL COM CORES E ÍCONES */
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        border-radius: 2px;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        margin-right: 6px;
+        margin-bottom: 8px;
+    }
+    .badge-onu { background-color: #E8EEF5; color: #1D4ED8; border: 1px solid #BFDBFE; }
+    .badge-mre { background-color: #F3F4F6; color: #374151; border: 1px solid #D1D5DB; }
+    .badge-noticias { background-color: #FEF3C7; color: #B45309; border: 1px solid #FDE68A; }
+    .badge-notas { background-color: #DCFCE7; color: #15803D; border: 1px solid #BBF7D0; }
+    .badge-discursos { background-color: #FEE2E2; color: #B91C1C; border: 1px solid #FECACA; }
+
+    .news-card {
+        background: #FFFFFF;
+        border-radius: 4px;
+        border: 1px solid #E2DED6;
+        overflow: hidden;
+        margin-bottom: 20px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .news-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.04);
+    }
+    .card-img-container {
+        width: 100%;
+        height: 200px;
+        overflow: hidden;
+        background-color: #1A1A1A;
+        position: relative;
+    }
+    .card-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s ease;
+    }
+    .news-card:hover .card-img { transform: scale(1.03); }
+    
+    .card-body { padding: 20px; }
+    .card-title {
+        font-family: 'Newsreader', serif;
+        font-size: 20px;
+        font-weight: 600;
+        color: #1A1A1A;
+        line-height: 1.25;
+        margin-bottom: 10px;
+    }
+    .card-excerpt { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13.5px; color: #666666; line-height: 1.6; margin-bottom: 14px; }
+    </style>
+""", unsafe_allow_html=True)
+
+# ==============================================================================
+# 5. GERADOR DE BADGES HTML COM ÍCONES MODERNOS E MINIMALISTAS
+# ==============================================================================
+def render_badge(categoria):
+    cat_lower = categoria.lower()
+    if "onu" in cat_lower:
+        return '<span class="badge badge-onu"><i class="fa-solid fa-globe"></i> ONU</span>'
+    elif "mre" in cat_lower:
+        return '<span class="badge badge-mre"><i class="fa-solid fa-landmark"></i> MRE</span>'
+    elif "notícia" in cat_lower or "noticia" in cat_lower:
+        return '<span class="badge badge-noticias"><i class="fa-solid fa-newspaper"></i> Notícia</span>'
+    elif "nota" in cat_lower:
+        return '<span class="badge badge-notas"><i class="fa-solid fa-file-lines"></i> Nota</span>'
+    elif "discurso" in cat_lower:
+        return '<span class="badge badge-discursos"><i class="fa-solid fa-bullhorn"></i> Discurso</span>'
+    else:
+        return f'<span class="badge badge-mre"><i class="fa-solid fa-tag"></i> {categoria}</span>'
+
+# ==============================================================================
+# 6. EXTRATOR E CARREGAMENTO DE FEED
+# ==============================================================================
+FONTES = {
+    "MRE (Notas)": ("https://www.gov.br/mre/pt-br/centrais-de-conteudo/notas-a-imprensa/RSS", "MRE", "Nota à Imprensa"),
+    "ONU (Notícias)": ("https://news.un.org/feed/subscribe/en/news/all/rss.xml", "ONU", "Notícia")
+}
+
+FALLBACK_IMAGES = [
+    "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=1200&q=80",
+    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80"
+]
+
+def extrair_url_imagem(entry, index):
+    if 'media_content' in entry and len(entry.media_content) > 0:
+        return entry.media_content[0].get('url', '')
+    if 'enclosures' in entry and len(entry.enclosures) > 0:
+        for enc in entry.enclosures:
+            if enc.get('type', '').startswith('image'):
+                return enc.get('href', '')
+    raw_html = entry.get("summary", "") or entry.get("description", "")
+    match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', raw_html)
+    if match:
+        return match.group(1)
+    return FALLBACK_IMAGES[index % len(FALLBACK_IMAGES)]
+
+@st.cache_data(ttl=1800)
+def carregar_noticias():
+    itens = []
+    regioes_lista = ["América do Sul", "Europa", "Oriente Médio", "Global"]
+    tipos_possiveis = ["Notícia", "Nota", "Discurso"]
+
+    idx_count = 0
+    for nome, (url, orgao, tipo_base) in FONTES.items():
+        feed = feedparser.parse(url)
+        for entry in feed.entries[:8]:
+            resumo = re.sub('<[^<]+?>', '', entry.get("summary", entry.get("description", "")))[:160] + "..."
+            imagem_url = extrair_url_imagem(entry, idx_count)
+            tipo_atribuido = tipos_possiveis[idx_count % len(tipos_possiveis)]
+            
+            itens.append({
+                "titulo": entry.title,
+                "resumo": resumo,
+                "orgao": orgao,
+                "tipo": tipo_atribuido,
+                "regiao": regioes_lista[idx_count % len(regioes_lista)],
+                "imagem": imagem_url,
+                "link": entry.link
+            })
+            idx_count += 1
+    return itens
+
+acervo_noticias = carregar_noticias()
+
+# ==============================================================================
+# 7. MENU SUPERIOR
+# ==============================================================================
+user_cur = st.session_state["current_user"]
+user_data = st.session_state["users_db"].get(user_cur, {"plan": "free", "access_count": 0})
+
+col_title, col_top_actions = st.columns([2.2, 1.8])
+
+with col_title:
+    st.markdown("""
+        <div style="font-family: 'Newsreader', serif; font-size: 26px; font-weight: 600; letter-spacing: -0.03em; margin: 0; padding-top: 2px;">
+            <span style="color: #1A1A1A;">Repositório</span> <span style="color: #666666; font-style: italic;">Diplomático</span>
+        </div>
+        <div style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; color: #777777; text-transform: uppercase; letter-spacing: 0.15em; margin-top: 2px; margin-bottom: 4px;">
+            a sua dose diária de informação
+        </div>
+    """, unsafe_allow_html=True)
+
+with col_top_actions:
+    col_nav_1, col_nav_2 = st.columns(2)
+    with col_nav_1:
+        st.markdown('<div class="top-nav-btn top-nav-btn-secondary">', unsafe_allow_html=True)
+        if user_cur == "visitante":
+            if st.button("Conta", key="top_create_account", use_container_width=True):
+                st.session_state["show_register_modal"] = True
+                st.rerun()
+        else:
+            st.caption(f"👤 {user_cur}")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col_nav_2:
+        st.markdown('<div class="top-nav-btn top-nav-btn-primary">', unsafe_allow_html=True)
+        if st.button("Assinar", key="top_subscribe", use_container_width=True):
+            st.session_state["show_plans_modal"] = True
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown("<hr style='border: none; border-top: 1px solid #1A1A1A; margin-top: 10px; margin-bottom: 24px;'>", unsafe_allow_html=True)
+
+# ==============================================================================
+# 8. BARRA LATERAL (FILTROS COM AS 5 CATEGORIAS SOLICITADAS)
+# ==============================================================================
+with st.sidebar:
+    st.markdown("### 🏛️ REPOSITÓRIO")
+    st.caption("a sua dose diária de informação")
+    st.markdown("---")
+
+    st.markdown("### 🏷️ Classificação & Filtros")
+    categoria_sel = st.selectbox("Categoria / Órgão:", ["Todas", "ONU", "MRE", "Notícias", "Notas", "Discursos"])
+    regiao_sel = st.selectbox("Região:", ["Todas as Regiões", "América do Sul", "Europa", "Oriente Médio", "Global"])
+
+    st.markdown("---")
+    busca = st.text_input("🔍 Busca por palavra-chave", placeholder="Ex: G20, COP, CSNU")
+
+# ==============================================================================
+# 9. LÓGICA DE FILTRAGEM
+# ==============================================================================
+noticias_filtradas = acervo_noticias
+
+if categoria_sel == "ONU":
+    noticias_filtradas = [n for n in noticias_filtradas if n["orgao"] == "ONU"]
+elif categoria_sel == "MRE":
+    noticias_filtradas = [n for n in noticias_filtradas if n["orgao"] == "MRE"]
+elif categoria_sel == "Notícias":
+    noticias_filtradas = [n for n in noticias_filtradas if n["tipo"].lower() in ["notícia", "noticia"]]
+elif categoria_sel == "Notas":
+    noticias_filtradas = [n for n in noticias_filtradas if n["tipo"].lower() == "nota"]
+elif categoria_sel == "Discursos":
+    noticias_filtradas = [n for n in noticias_filtradas if n["tipo"].lower() == "discurso"]
+
+if regiao_sel != "Todas as Regiões":
+    noticias_filtradas = [n for n in noticias_filtradas if n["regiao"] == regiao_sel]
+if busca:
+    noticias_filtradas = [n for n in noticias_filtradas if busca.lower() in n["titulo"].lower() or busca.lower() in n["resumo"].lower()]
+
+# ==============================================================================
+# 10. GRADE DE NOTÍCIAS COM BADGES E ÍCONES MODERNOS
+# ==============================================================================
+st.markdown("### 📰 Acervo de Documentos & Notícias")
+
+if len(noticias_filtradas) > 0:
+    grid_cols = st.columns(2)
+    for idx, item in enumerate(noticias_filtradas):
+        with grid_cols[idx % 2]:
+            badge_orgao = render_badge(item['orgao'])
+            badge_tipo = render_badge(item['tipo'])
+            
+            st.markdown(f"""
+                <div class="news-card">
+                    <div class="card-img-container">
+                        <img src="{item['imagem']}" class="card-img" alt="Capa" />
+                    </div>
+                    <div class="card-body">
+                        <div>{badge_orgao}{badge_tipo}</div>
+                        <div style="font-size: 11px; color: #777777; margin-bottom: 6px; font-weight: 500;">📍 {item['regiao']}</div>
+                        <div class="card-title">{item['titulo']}</div>
+                        <div class="card-excerpt">{item['resumo']}</div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            if st.button(f"📖 LER COMPLETO", key=f"read_grid_{idx}", use_container_width=True):
+                if user_data["plan"] == "free":
+                    user_data["access_count"] += 1
+                st.markdown(f'<meta http-equiv="refresh" content="0; url={item["link"]}">', unsafe_allow_html=True)
+                st.rerun()
+else:
+    st.info("Nenhum documento encontrado com os filtros atuais.")
