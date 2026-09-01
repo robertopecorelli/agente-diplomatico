@@ -19,7 +19,7 @@ stripe.api_key = STRIPE_SECRET_KEY
 # 2. CONFIGURAÇÃO DA PÁGINA STREAMLIT
 # ==============================================================================
 st.set_page_config(
-    page_title="Repositório Diplomático | Acervo CACD",
+    page_title="Ubique News | Repositório Diplomático",
     page_icon="🏛️",
     layout="wide",
     initial_sidebar_state="auto"
@@ -63,117 +63,139 @@ def enviar_email_confirmacao(email_destino, nome_usuario):
     st.toast(f"📧 E-mail de confirmação enviado para: {email_destino}", icon="📩")
 
 # ==============================================================================
-# 4. ESTILOS CSS PERSONALIZADOS E RESPONSIVOS (MOBILE-FRIENDLY)
+# 4. ESTILOS CSS PERSONALIZADOS (ESTÉTICA EDITORIAL AOC MEDIA)
 # ==============================================================================
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap');
 
     html, body, [class*="stApp"] {
-        background-color: #F0E6D2 !important;
-        font-family: 'Inter', sans-serif !important;
-        color: #262626 !important;
+        background-color: #F7F5F0 !important;
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        color: #1A1A1A !important;
     }
 
     h1, h2, h3, h4, h5, h6 {
-        font-family: 'Playfair Display', serif !important;
-        color: #262626 !important;
+        font-family: 'Newsreader', serif !important;
+        color: #1A1A1A !important;
+        letter-spacing: -0.02em;
     }
 
     section[data-testid="stSidebar"] {
-        background-color: #E6DCB8 !important;
-        border-right: 1px solid #D19A7D;
+        background-color: #EFECE6 !important;
+        border-right: 1px solid #E2DED6;
+    }
+
+    /* Estilo de cabeçalho minimalista editorial */
+    .portal-header-container {
+        border-bottom: 1px solid #1A1A1A;
+        padding-bottom: 16px;
+        margin-bottom: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
     }
 
     @media (max-width: 768px) {
         .portal-title {
-            font-size: 22px !important;
+            font-size: 24px !important;
         }
         .top-nav-btn button {
-            font-size: 9.5px !important;
-            padding: 2px 6px !important;
+            font-size: 9px !important;
+            padding: 2px 4px !important;
         }
     }
 
     .top-nav-btn button {
-        font-family: 'Inter', sans-serif !important;
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
         font-size: 11px !important;
-        padding: 4px 12px !important;
-        font-weight: 700 !important;
-        letter-spacing: 0.5px !important;
-        border-radius: 4px !important;
-        height: 32px !important;
+        padding: 6px 14px !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.05em !important;
+        border-radius: 2px !important;
+        height: 36px !important;
         min-height: 0px !important;
-        margin-top: 2px !important;
         text-transform: uppercase;
         width: 100%;
         color: #F0E6D2 !important;
     }
 
     .top-nav-btn-primary button {
-        background-color: #B76D4D !important;
-        border: 1px solid #B76D4D !important;
+        background-color: #1A1A1A !important;
+        border: 1px solid #1A1A1A !important;
     }
     .top-nav-btn-primary button:hover {
-        background-color: #9E583A !important;
+        background-color: #333333 !important;
         color: #F0E6D2 !important;
     }
 
     .top-nav-btn-secondary button {
-        background-color: #4A4A4A !important;
-        border: 1px solid #D19A7D !important;
+        background-color: transparent !important;
+        border: 1px solid #1A1A1A !important;
+        color: #1A1A1A !important;
     }
     .top-nav-btn-secondary button:hover {
-        background-color: #383838 !important;
-        color: #F0E6D2 !important;
+        background-color: #1A1A1A !important;
+        color: #F7F5F0 !important;
     }
 
+    /* Cards estilo Magazine / AOC Media */
     .news-card {
         background: #FFFFFF;
-        border-radius: 6px;
-        border: 1px solid #D19A7D;
+        border-radius: 4px;
+        border: 1px solid #E2DED6;
         overflow: hidden;
-        margin-bottom: 16px;
-        box-shadow: 0 2px 8px rgba(38, 38, 38, 0.05);
+        margin-bottom: 20px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .news-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.04);
     }
     .card-img-container {
         width: 100%;
-        height: 180px;
+        height: 200px;
         overflow: hidden;
-        background-color: #262626;
+        background-color: #1A1A1A;
         position: relative;
     }
     .card-img {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        transition: transform 0.4s ease;
+        transition: transform 0.5s ease;
     }
-    .news-card:hover .card-img { transform: scale(1.04); }
+    .news-card:hover .card-img { transform: scale(1.03); }
     
-    .card-body { padding: 16px; }
+    .card-body { padding: 20px; }
     .meta-tag {
-        font-family: 'Inter', sans-serif;
-        font-size: 9.5px;
-        font-weight: 800;
-        color: #B76D4D;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-bottom: 6px;
-    }
-    .card-title {
-        font-family: 'Playfair Display', serif;
-        font-size: 17.5px;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 10px;
         font-weight: 700;
-        color: #262626;
-        line-height: 1.3;
+        color: #555555;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
         margin-bottom: 8px;
     }
-    .card-excerpt { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A4A4A; line-height: 1.5; margin-bottom: 10px; }
+    .card-title {
+        font-family: 'Newsreader', serif;
+        font-size: 20px;
+        font-weight: 600;
+        color: #1A1A1A;
+        line-height: 1.25;
+        margin-bottom: 10px;
+    }
+    .card-excerpt { 
+        font-family: 'Plus Jakarta Sans', sans-serif; 
+        font-size: 13.5px; 
+        color: #666666; 
+        line-height: 1.6; 
+        margin-bottom: 14px; 
+    }
 
-    .register-header-title { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: #262626; text-align: center; margin-bottom: 4px; }
-    .register-header-subtitle { font-family: 'Inter', sans-serif; font-size: 13px; color: #736B63; text-align: center; margin-bottom: 20px; }
-    .field-label { font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 800; color: #262626; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+    .register-header-title { font-family: 'Newsreader', serif; font-size: 32px; font-weight: 600; color: #1A1A1A; text-align: center; margin-bottom: 4px; }
+    .register-header-subtitle { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; color: #666666; text-align: center; margin-bottom: 24px; }
+    .field-label { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 10px; font-weight: 700; color: #1A1A1A; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -234,19 +256,19 @@ def carregar_noticias():
 acervo_noticias = carregar_noticias()
 
 # ==============================================================================
-# 6. MENU SUPERIOR RESPONSIVO COM O SUBTÍTULO
+# 6. MENU SUPERIOR COM ESTILO EDITORIAL
 # ==============================================================================
 user_cur = st.session_state["current_user"]
 user_data = st.session_state["users_db"].get(user_cur, {"plan": "free", "access_count": 0})
 
-col_title, col_top_actions = st.columns([2.2, 1.8])
+col_title, col_top_actions = st.columns([2.5, 1.5])
 
 with col_title:
     st.markdown("""
-        <div class="portal-title" style="font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 800; letter-spacing: 0.5px; margin: 0; padding-top: 2px;">
-            <span style="color: #1F2937;">Repositório</span> <span style="color: #B76D4D;">Diplomático</span>
+        <div class="portal-title" style="font-family: 'Newsreader', serif; font-size: 28px; font-weight: 600; letter-spacing: -0.03em; margin: 0; padding-top: 2px;">
+            <span style="color: #1A1A1A;">Ubique</span> <span style="color: #666666; font-style: italic;">News</span>
         </div>
-        <div style="font-family: 'Inter', sans-serif; font-size: 11.5px; color: #736B63; text-transform: lowercase; letter-spacing: 0.5px; margin-top: 2px; margin-bottom: 4px;">
+        <div style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; color: #777777; text-transform: uppercase; letter-spacing: 0.15em; margin-top: 2px; margin-bottom: 4px;">
             a sua dose diária de informação
         </div>
     """, unsafe_allow_html=True)
@@ -256,7 +278,7 @@ with col_top_actions:
     with col_nav_1:
         st.markdown('<div class="top-nav-btn top-nav-btn-secondary">', unsafe_allow_html=True)
         if user_cur == "visitante":
-            if st.button("Conta", key="top_create_account", use_container_width=True):
+            if st.button("Entrar", key="top_create_account", use_container_width=True):
                 st.session_state["show_register_modal"] = True
                 st.rerun()
         else:
@@ -271,14 +293,14 @@ with col_top_actions:
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown("---")
+st.markdown("<hr style='border: none; border-top: 1px solid #1A1A1A; margin-top: 10px; margin-bottom: 24px;'>", unsafe_allow_html=True)
 
 # ==============================================================================
-# 7. TELA DE CADASTRO
+# 7. TELA DE CADASTRO E LOGIN
 # ==============================================================================
 if st.session_state["show_register_modal"]:
     st.markdown("""
-        <div class="register-header-title">Criar Conta</div>
+        <div class="register-header-title">Ubique News</div>
         <div class="register-header-subtitle">a sua dose diária de informação.</div>
     """, unsafe_allow_html=True)
 
@@ -286,22 +308,22 @@ if st.session_state["show_register_modal"]:
         st.markdown('<div class="field-label">NOME COMPLETO</div>', unsafe_allow_html=True)
         nome = st.text_input("Nome Completo", placeholder="Seu nome completo", label_visibility="collapsed")
 
-        st.markdown('<div class="field-label" style="margin-top:10px;">TELEFONE INTERNACIONAL</div>', unsafe_allow_html=True)
+        st.markdown('<div class="field-label" style="margin-top:12px;">TELEFONE INTERNACIONAL</div>', unsafe_allow_html=True)
         c_ddi, c_num = st.columns([1.5, 2.5])
         with c_ddi:
             pais_codigo = st.selectbox("DDI", ["🇧🇷 +55", "🇺🇸 +1", "🇵🇹 +351"], label_visibility="collapsed")
         with c_num:
             telefone = st.text_input("Telefone", placeholder="Número", label_visibility="collapsed")
 
-        st.markdown('<div class="field-label" style="margin-top:10px;">E-MAIL</div>', unsafe_allow_html=True)
+        st.markdown('<div class="field-label" style="margin-top:12px;">E-MAIL</div>', unsafe_allow_html=True)
         email = st.text_input("E-mail", placeholder="seu@email.com", label_visibility="collapsed")
 
-        st.markdown('<div class="field-label" style="margin-top:10px;">SENHA</div>', unsafe_allow_html=True)
+        st.markdown('<div class="field-label" style="margin-top:12px;">SENHA</div>', unsafe_allow_html=True)
         senha = st.text_input("Senha", type="password", placeholder="Mínimo 6 caracteres", label_visibility="collapsed")
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown('<div class="top-nav-btn top-nav-btn-primary">', unsafe_allow_html=True)
-        btn_submit = st.form_submit_button("Criar Conta", use_container_width=True)
+        btn_submit = st.form_submit_button("Criar Conta e Entrar", use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
         if btn_submit:
@@ -317,7 +339,7 @@ if st.session_state["show_register_modal"]:
                 st.session_state["show_register_modal"] = False
                 st.rerun()
 
-    if st.button("Voltar ao Acervo", use_container_width=True):
+    if st.button("Voltar à Página Inicial", use_container_width=True):
         st.session_state["show_register_modal"] = False
         st.rerun()
     st.stop()
@@ -326,11 +348,11 @@ if st.session_state["show_register_modal"]:
 # 8. BARRA LATERAL (FILTROS)
 # ==============================================================================
 with st.sidebar:
-    st.markdown("### 🏛️ REPOSITÓRIO")
+    st.markdown("### 🏛️ UBIQUE NEWS")
     st.caption("a sua dose diária de informação")
     st.markdown("---")
 
-    st.markdown("### 🌍 Filtros do Acervo")
+    st.markdown("### 🌍 Filtros de Geopolítica")
     editoria_sel = st.selectbox("Fonte / Órgão:", ["Todas", "MRE (Notas)", "ONU"])
     regiao_sel = st.selectbox("Região:", ["Todas as Regiões", "América do Sul", "Europa", "Oriente Médio", "Global"])
     tema_sel = st.selectbox("Tema:", ["Todos os Temas", "Segurança & Defesa", "Economia & Comércio", "Cooperação Internacional"])
@@ -356,7 +378,7 @@ if busca:
     noticias_filtradas = [n for n in noticias_filtradas if busca.lower() in n["titulo"].lower() or busca.lower() in n["resumo"].lower()]
 
 # ==============================================================================
-# 10. CARROSSEL AUTOMÁTICO RESPONSIVO NO TOPO E GRADE DE NOTÍCIAS
+# 10. CARROSSEL DE DESTAQUES & GRADE DE NOTÍCIAS (ESTILO AOC MEDIA)
 # ==============================================================================
 if len(noticias_filtradas) > 0:
     slides_js = ""
@@ -376,16 +398,16 @@ if len(noticias_filtradas) > 0:
     <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:wght@600;700&display=swap');
-      body {{ margin: 0; background: transparent; font-family: 'Inter', sans-serif; }}
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&family=Newsreader:ital,opsz,wght@0,6..72,600;1,6..72,400&display=swap');
+      body {{ margin: 0; background: transparent; font-family: 'Plus Jakarta Sans', sans-serif; }}
       .carousel {{
         position: relative;
         width: 100%;
-        height: 380px;
+        height: 400px;
         overflow: hidden;
-        border-radius: 8px;
-        border: 1px solid #D19A7D;
-        box-shadow: 0 4px 15px rgba(38, 38, 38, 0.15);
+        border-radius: 4px;
+        border: 1px solid #E2DED6;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
       }}
       @media (max-width: 768px) {{
         .carousel {{ height: 280px; }}
@@ -396,7 +418,7 @@ if len(noticias_filtradas) > 0:
         display: flex;
         width: 100%;
         height: 100%;
-        transition: transform 0.6s ease-in-out;
+        transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
       }}
       .slide {{
         min-width: 100%;
@@ -410,55 +432,56 @@ if len(noticias_filtradas) > 0:
       .overlay {{
         position: absolute;
         bottom: 0; left: 0; right: 0; top: 0;
-        background: linear-gradient(to top, rgba(38,38,38,0.95) 0%, rgba(38,38,38,0.4) 50%, transparent 100%);
+        background: linear-gradient(to top, rgba(26,26,26,0.92) 0%, rgba(26,26,26,0.3) 55%, transparent 100%);
       }}
       .content {{
         position: relative;
         z-index: 2;
-        padding: 30px;
-        color: #F0E6D2;
+        padding: 35px;
+        color: #F7F5F0;
         width: 100%;
         box-sizing: border-box;
       }}
       .tag {{
-        background-color: #B76D4D;
-        color: #FFFFFF;
+        background-color: #1A1A1A;
+        color: #F7F5F0;
         font-size: 10px;
-        font-weight: 800;
-        padding: 3px 8px;
-        border-radius: 4px;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 2px;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 0.1em;
         display: inline-block;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
+        border: 1px solid rgba(255,255,255,0.2);
       }}
       .slide-title {{
-        font-family: 'Playfair Display', serif;
-        font-size: 24px;
-        font-weight: 700;
-        color: #F0E6D2 !important;
+        font-family: 'Newsreader', serif;
+        font-size: 26px;
+        font-weight: 600;
+        color: #F7F5F0 !important;
         margin: 0;
-        line-height: 1.25;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+        line-height: 1.2;
       }}
       .dots {{
         position: absolute;
-        bottom: 12px;
-        right: 20px;
+        bottom: 16px;
+        right: 24px;
         z-index: 10;
         display: flex;
         gap: 6px;
       }}
       .dot {{
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
         border-radius: 50%;
-        background: rgba(240, 230, 210, 0.4);
+        background: rgba(247, 245, 240, 0.4);
         cursor: pointer;
-        transition: background 0.3s;
+        transition: background 0.3s, transform 0.3s;
       }}
       .dot.active {{
-        background: #B76D4D;
+        background: #F7F5F0;
+        transform: scale(1.3);
       }}
     </style>
     </head>
@@ -515,7 +538,7 @@ if len(noticias_filtradas) > 0:
         }}
 
         function startTimer() {{
-          intervalId = setInterval(nextSlide, 4500);
+          intervalId = setInterval(nextSlide, 5000);
         }}
 
         function resetTimer() {{
@@ -529,10 +552,10 @@ if len(noticias_filtradas) > 0:
     </html>
     """
     
-    components.html(carousel_html_code, height=395)
+    components.html(carousel_html_code, height=415)
     
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### 📰 Demais Documentos & Notícias do Acervo")
+    st.markdown("### Notícias em Destaque & Análises")
 
     grid_cols = st.columns(2)
     for idx, item in enumerate(noticias_filtradas):
@@ -545,16 +568,16 @@ if len(noticias_filtradas) > 0:
                     <div class="card-body">
                         <div class="meta-tag">{item['orgao']} • {item['tipo']} | 📍 {item['regiao']}</div>
                         <div class="card-title">{item['titulo']}</div>
-                        <div style="font-family:'Inter', sans-serif; font-size:11px; font-weight:700; color:#B76D4D; margin-bottom:8px;">🏷️ Tema: {item['tema']}</div>
+                        <div style="font-family:'Plus Jakarta Sans', sans-serif; font-size:11px; font-weight:600; color:#555555; margin-bottom:8px;">🏷️ Eixo: {item['tema']}</div>
                         <div class="card-excerpt">{item['resumo']}</div>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
             
-            if st.button(f"📖 LER COMPLETO", key=f"read_grid_{idx}", use_container_width=True):
+            if st.button(f"LER MATÉRIA COMPLETA", key=f"read_grid_{idx}", use_container_width=True):
                 if user_data["plan"] == "free":
                     user_data["access_count"] += 1
                 st.markdown(f'<meta http-equiv="refresh" content="0; url={item["link"]}">', unsafe_allow_html=True)
                 st.rerun()
 else:
-    st.info("Nenhum documento encontrado com os filtros atuais.")
+    st.info("Nenhuma notícia encontrada com os filtros atuais.")
