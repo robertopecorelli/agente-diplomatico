@@ -2,7 +2,7 @@ name: Agente Diplomático Diário
 
 on:
   schedule:
-    - cron: '0 8 * * *'
+    - cron: '1 2 * * *'
   workflow_dispatch:
 
 jobs:
