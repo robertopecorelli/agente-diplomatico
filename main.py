@@ -46,7 +46,7 @@ def verificar_reset_diario(username):
 verificar_reset_diario(str_lit.session_state["current_user"])
 
 # ==============================================================================
-# 4. ESTILOS CSS (LAYOUT EDITORIAL E MÍDIAS)
+# 4. ESTILOS CSS (LAYOUT EDITORIAL, IMAGENS E LINK DISCRETO)
 # ==============================================================================
 str_lit.markdown("""
     <style>
@@ -65,7 +65,7 @@ str_lit.markdown("""
     }
     .article-container {
         background-color: #FFFFFF;
-        padding: 45px;
+        padding: 40px;
         border-radius: 4px;
         border: 1px solid #E2DED6;
         margin-bottom: 20px;
@@ -78,23 +78,16 @@ str_lit.markdown("""
         line-height: 1.85;
         margin-bottom: 22px;
     }
-    .article-container img, .article-container figure, .article-container picture {
+    .article-container img {
         display: block;
         max-width: 100% !important;
         height: auto !important;
-        margin: 25px auto;
-        border-radius: 4px;
-        border: 1px solid #E2DED6;
-        background-color: #F9F9F9;
+        max-height: 550px;
         object-fit: contain;
-    }
-    .article-container figcaption {
-        font-size: 13px;
-        color: #666666;
-        text-align: center;
-        margin-top: -15px;
-        margin-bottom: 25px;
-        font-style: italic;
+        background-color: #F9F9F9;
+        border-radius: 4px;
+        margin: 25px auto;
+        border: 1px solid #E2DED6;
     }
     .badge {
         display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
@@ -104,6 +97,7 @@ str_lit.markdown("""
     .badge-onu { background-color: #E8EEF5; color: #1D4ED8; border: 1px solid #BFDBFE; }
     .badge-mre { background-color: #F3F4F6; color: #374151; border: 1px solid #D1D5DB; }
     
+    /* Link de rodapé discreto */
     .footer-original-link {
         font-size: 13px;
         color: #666666;
@@ -124,28 +118,27 @@ str_lit.markdown("""
 """, unsafe_allow_html=True)
 
 def render_badge(categoria):
-    if "onu" in categoria.lower():
-        return '<span class="badge badge-onu"><i class="fa-solid fa-globe"></i> ONU</span>'
+    if "onu" in categoria.lower(): return '<span class="badge badge-onu"><i class="fa-solid fa-globe"></i> ONU</span>'
     return '<span class="badge badge-mre"><i class="fa-solid fa-landmark"></i> MRE</span>'
 
 # ==============================================================================
-# 5. EXTRATOR PROFUNDO DE CONTEÚDO INTEGRAL E IDIOMAS NATIVOS
+# 5. EXTRATOR ROBUSTO DE CONTEÚDO INTEGRAL E IDIOMAS NATIVOS
 # ==============================================================================
 @str_lit.cache_data(ttl=3600)
 def raspar_conteudo_completo(url):
     idiomas_disponiveis = {}
     conteudo_html = ""
     
-    # Mapeamento para portais multilíngues (ex: ONU News)
+    # Mapeamento dinâmico para portais multilíngues (ex: ONU News)
     if "news.un.org" in url:
         base_un = re.sub(r'news\.un\.org/[a-z]{2}/', 'news.un.org/{lang}/', url)
         idiomas_disponiveis = {
-            "Inglês (EN)": base_un.format(lang="en"),
-            "Português (PT)": base_un.format(lang="pt"),
-            "Espanhol (ES)": base_un.format(lang="es"),
-            "Francês (FR)": base_un.format(lang="fr"),
-            "Chinês (ZH)": base_un.format(lang="zh"),
-            "Russo (RU)": base_un.format(lang="ru")
+            "EN (Inglês)": base_un.format(lang="en"),
+            "PT (Português)": base_un.format(lang="pt"),
+            "ES (Espanhol)": base_un.format(lang="es"),
+            "FR (Francês)": base_un.format(lang="fr"),
+            "ZH (Chinês)": base_un.format(lang="zh"),
+            "RU (Russo)": base_un.format(lang="ru")
         }
 
     try:
@@ -154,22 +147,21 @@ def raspar_conteudo_completo(url):
             'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
         }
         
-        resposta = requests.get(url, headers=headers, timeout=12)
+        resposta = requests.get(url, headers=headers, timeout=10)
         
         if resposta.status_code == 200:
             soup = BeautifulSoup(resposta.text, 'html.parser')
             
-            # Captura links de idiomas alternativos reais do cabeçalho da página (hreflang)
+            # Captura links de idiomas alternativos reais do cabeçalho da página se houverem
             for lang_link in soup.find_all('link', hreflang=True):
                 lang_code = lang_link.get('hreflang').upper()
                 lang_href = lang_link.get('href')
-                if lang_code and lang_code != "X-DEFAULT" and len(lang_code) <= 5:
+                if lang_code and lang_code != "X-DEFAULT":
                     idiomas_disponiveis[lang_code] = lang_href
 
-            # Captura o corpo completo da notícia, notas e discursos
+            # Varredura focada em encontrar o corpo do texto de notícias institucionais e governamentais
             corpo = (
                 soup.find('div', class_='story-content') or 
-                soup.find('div', class_='field-name-body') or
                 soup.find('div', id='content-core') or      
                 soup.find('div', id='parent-fieldname-text') or 
                 soup.find('div', class_='node__content') or
@@ -178,18 +170,19 @@ def raspar_conteudo_completo(url):
             )
             
             if corpo:
+                # Remove elementos irrelevantes (menus, rodapés, scripts, formulários)
                 for lixo in corpo(["script", "style", "nav", "footer", "form", "aside", "header", ".share-buttons", ".social-media"]):
                     lixo.extract()
                 conteudo_html = str(corpo)
             else:
-                elementos = soup.find_all(['p', 'h2', 'h3', 'img', 'figure', 'picture', 'blockquote'])
-                container_dinamico = BeautifulSoup("<div></div>", "html.parser")
-                div_pai = container_dinamico.div
-                for el in elementos:
-                    texto_el = el.get_text(strip=True).lower()
-                    if not any(termo in texto_el for termo in ["direitos reservados", "política de privacidade", "cookies", "newsletter"]):
-                        div_pai.append(el)
-                conteudo_html = str(div_pai)
+                # Se não achar um bloco central único, junta todos os parágrafos relevantes da página
+                paragrafos = soup.find_all(['p', 'h2', 'h3'])
+                elementos_validos = []
+                for p in paragrafos:
+                    texto = p.get_text(strip=True).lower()
+                    if not any(termo in texto for termo in ["direitos reservados", "política de privacidade", "cookies", "newsletter"]):
+                        elementos_validos.append(str(p))
+                conteudo_html = "".join(elementos_validos)
                 
     except Exception as e:
         print(f"Erro ao raspar {url}: {e}")
@@ -213,6 +206,7 @@ def carregar_noticias():
         for entry in feed.entries[:10]:
             resumo = re.sub('<[^<]+?>', '', entry.get("summary", entry.get("description", "")))[:250] + "..."
             
+            # Conteúdo embutido do RSS usado como alternativa se a página externa falhar
             conteudo_rss_html = ""
             if 'content' in entry:
                 conteudo_rss_html = entry.content[0].value
@@ -239,7 +233,7 @@ def carregar_noticias():
 acervo_noticias = carregar_noticias()
 
 # ==============================================================================
-# 7. ROTEAMENTO DA PÁGINA INTERNA (DETALHES DA NOTÍCIA/DISCURSO)
+# 7. ROTEAMENTO DA PÁGINA INTERNA (DETALHES)
 # ==============================================================================
 article_id_param = str_lit.query_params.get("article", None)
 
@@ -251,12 +245,13 @@ if article_id_param is not None:
         artigo_atual = None
 
     if artigo_atual:
-        # Extrai o conteúdo completo do site de origem com todas as fotos, imagens e estrutura
+        # Extrai o conteúdo completo e os idiomas do site de origem
         conteudo_extraido, idiomas_origem = raspar_conteudo_completo(artigo_atual['link'])
         
+        # Se por acaso a extração falhar, recorre ao HTML do RSS para não deixar em branco
         conteudo_final = conteudo_extraido if len(conteudo_extraido) > 150 else f"<div>{artigo_atual['conteudo_rss']}</div>"
 
-        # Barra superior com botão de Voltar e Menu de Idiomas Nativos
+        # Barra superior de Voltar e Seletor de Idiomas Nativos
         col_voltar, col_lang = str_lit.columns([3, 1])
         with col_voltar:
             if str_lit.button("← Voltar ao Repositório"):
@@ -265,9 +260,9 @@ if article_id_param is not None:
         
         with col_lang:
             if idiomas_origem:
-                lista_langs = ["Versão Atual"] + list(idiomas_origem.keys())
-                lang_escolhida = str_lit.selectbox("🌐 Outras Línguas:", lista_langs)
-                if lang_escolhida != "Versão Atual" and lang_escolhida in idiomas_origem:
+                lista_langs = ["Original (Link)"] + list(idiomas_origem.keys())
+                lang_escolhida = str_lit.selectbox("🌐 Idioma Original:", lista_langs)
+                if lang_escolhida != "Original (Link)" and lang_escolhida in idiomas_origem:
                     link_traduzido = idiomas_origem[lang_escolhida]
                     str_lit.markdown(f'<meta http-equiv="refresh" content="0; url={link_traduzido}">', unsafe_allow_html=True)
             else:
@@ -275,25 +270,25 @@ if article_id_param is not None:
 
         str_lit.markdown("<br>", unsafe_allow_html=True)
         
-        # Órgão e Título
+        # Cabeçalho e Título
         str_lit.markdown(f"<div>{render_badge(artigo_atual['orgao'])}</div>", unsafe_allow_html=True)
         str_lit.markdown(f"<h1 style='font-family: Newsreader, serif; font-size: 38px; margin-top: 10px; margin-bottom: 25px;'>{artigo_atual['titulo']}</h1>", unsafe_allow_html=True)
         
-        # Imagem de Capa em Alta Definição
+        # Imagem de Capa
         str_lit.markdown(f"""
             <div style="width: 100%; text-align: center; overflow: hidden; border-radius: 4px; margin-bottom: 30px; border: 1px solid #E2DED6; background-color: #1A1A1A;">
                 <img src="{artigo_atual['imagem']}" style="max-width: 100%; max-height: 550px; object-fit: contain; margin: 0 auto;" alt="Capa" />
             </div>
         """, unsafe_allow_html=True)
         
-        # Texto Completo Integrado com Fotos e Gráficos da Origem
+        # Texto Completo Raspado do Site de Origem
         str_lit.markdown(f"""
             <div class="article-container">
                 {conteudo_final}
             </div>
         """, unsafe_allow_html=True)
         
-        # Link Discreto de Rodapé
+        # Link discreto no rodapé para a página de origem
         str_lit.markdown(f"""
             <div class="footer-original-link">
                 Publicação original disponível em <a href="{artigo_atual['link']}" target="_blank">{artigo_atual['orgao']}</a>
@@ -303,7 +298,7 @@ if article_id_param is not None:
         str_lit.stop()
 
 # ==============================================================================
-# 8. HOME / LISTAGEM PRINCIPAL
+# 8. HOME / LISTAGEM DE NOTÍCIAS
 # ==============================================================================
 str_lit.markdown("""
     <div style="font-family: 'Newsreader', serif; font-size: 28px; font-weight: 600;">
