@@ -101,6 +101,42 @@ def coletar_noticias_onu():
         print(f"-> Erro ONU: {e}")
     return artigos
 
+def enviar_notificacao_telegram(titulo, resumo, disciplina, tags, link, fonte):
+    """Envia mensagem formatada para o bot do Telegram."""
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+
+    if not bot_token or not chat_id:
+        print("  ⚠️ Telegram não configurado (TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID ausentes).")
+        return
+
+    str_tags = " ".join([f"#{t.replace(' ', '_')}" for t in tags]) if tags else ""
+
+    mensagem = f"""
+📌 <b>[{fonte}] {titulo}</b>
+
+📚 <b>Disciplina CACD:</b> {disciplina}
+🏷️ <b>Tags:</b> {str_tags}
+
+📝 <b>Resumo IA:</b>
+{resumo}
+
+🔗 <a href="{link}">Ler matéria completa</a>
+    """
+
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": mensagem,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True
+    }
+
+    try:
+        requests.post(url, json=payload, timeout=10)
+    except Exception as e:
+        print(f"  ❌ Erro ao enviar mensagem para o Telegram: {e}")
+
 def salvar_no_banco(artigos):
     if not artigos:
         print("Nenhum artigo novo para processar.")
@@ -110,12 +146,10 @@ def salvar_no_banco(artigos):
     cursor = conexao.cursor()
 
     dados_processados = []
-    
-    # Para evitar estourar limites em testes, processa as primeiras 5 notícias por vez
     artigos_para_processar = artigos[:5]
     total = len(artigos_para_processar)
 
-    print(f"\n--- Processando {total} notícias com a IA ---")
+    print(f"\n--- Processando {total} notícias com a IA e Telegram ---")
 
     for i, item in enumerate(artigos_para_processar, 1):
         print(f"[{i}/{total}] Analisando: {item['titulo'][:60]}...")
@@ -126,8 +160,17 @@ def salvar_no_banco(artigos):
             item["data_publicacao"], item["conteudo_bruto"], 
             resumo_ia, disciplina, tags
         ))
+
+        # Dispara a notificação para o Telegram
+        enviar_notificacao_telegram(
+            titulo=item["titulo"],
+            resumo=resumo_ia,
+            disciplina=disciplina,
+            tags=tags,
+            link=item["link"],
+            fonte=item["fonte"]
+        )
         
-        # Espera 4.5s para manter a cota abaixo de 15 requisições por minuto
         if i < total:
             time.sleep(4.5)
 
@@ -143,14 +186,13 @@ def salvar_no_banco(artigos):
     try:
         execute_values(cursor, sql, dados_processados)
         conexao.commit()
-        print(f"\n✅ Sucesso: {len(dados_processados)} artigos salvos e atualizados no Supabase!")
+        print(f"\n✅ Sucesso: {len(dados_processados)} artigos salvos no Supabase e enviados ao Telegram!")
     except Exception as e:
         conexao.rollback()
         print(f"❌ Erro ao gravar no Supabase: {e}")
     finally:
         cursor.close()
         conexao.close()
-
 if __name__ == "__main__":
     mre = coletar_noticias_mre()
     onu = coletar_noticias_onu()
