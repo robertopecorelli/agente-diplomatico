@@ -26,7 +26,7 @@ str_lit.set_page_config(
 )
 
 # ==============================================================================
-# 3. GERENCIAMENTO DE SESSÃO
+# 3. GERENCIAMENTO DE SESSÃO E ROTEAMENTO INICIAL
 # ==============================================================================
 if "users_db" not in str_lit.session_state:
     str_lit.session_state["users_db"] = {
@@ -189,7 +189,7 @@ str_lit.markdown("""
         margin-bottom: 10px;
         cursor: pointer;
     }
-    .card-title:hover { color: #555555; }
+    .card-title:hover { color: #555555; text-decoration: underline; }
     .card-excerpt { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13.5px; color: #666666; line-height: 1.6; margin-bottom: 14px; }
     </style>
 """, unsafe_allow_html=True)
@@ -313,7 +313,7 @@ acervo_noticias = carregar_noticias()
 temas_disponiveis = sorted(list(set([item["tema"] for item in acervo_noticias])))
 
 # ==============================================================================
-# 7. VERIFICAÇÃO DE ROTEAMENTO (PÁGINA DETALHADA VS HOME)
+# 7. ROTEAMENTO DA PÁGINA INTERNA DE DETALHES (ESTILO AOC.MEDIA)
 # ==============================================================================
 article_id_param = str_lit.query_params.get("article", None)
 
@@ -325,10 +325,9 @@ if article_id_param is not None:
         artigo_atual = None
 
     if artigo_atual:
-        # PÁGINA INTERNA DE DETALHES (LAYOUT AOC.MEDIA)
         stripe_classe = get_stripe_class(artigo_atual['tipo'])
         
-        # Barra superior colorida característica do tipo na aoc.media
+        # Faixa colorida no topo (estilo AOC.media)
         str_lit.markdown(f'<div class="{stripe_classe}"></div>', unsafe_allow_html=True)
         
         col_voltar, col_lang = str_lit.columns([3, 1])
@@ -346,7 +345,7 @@ if article_id_param is not None:
         str_lit.markdown(f"<div>{render_badge(artigo_atual['orgao'])}{render_badge(artigo_atual['tipo'])}</div>", unsafe_allow_html=True)
         str_lit.markdown(f"<div style='font-size: 13px; color: #555555; margin-top: 4px; font-weight: 500;'>🏷️ Tema: {artigo_atual['tema']} &nbsp;|&nbsp; 📍 {artigo_atual['regiao']} &nbsp;|&nbsp; 📅 {artigo_atual['data']}</div>", unsafe_allow_html=True)
         
-        # Título Estilo Editorial
+        # Título
         str_lit.markdown(f"<h1 style='font-family: Newsreader, serif; font-size: 34px; margin-top: 15px; margin-bottom: 20px; line-height: 1.2;'>{artigo_atual['titulo']}</h1>", unsafe_allow_html=True)
         
         # Imagem de Capa
@@ -356,7 +355,7 @@ if article_id_param is not None:
             </div>
         """, unsafe_allow_html=True)
         
-        # Texto / Corpo da Notícia
+        # Corpo do Texto
         str_lit.markdown(f"""
             <div style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 16px; color: #2A2A2A; line-height: 1.8; margin-bottom: 30px;">
                 <p>{artigo_atual['conteudo_completo']}</p>
@@ -365,14 +364,14 @@ if article_id_param is not None:
         
         str_lit.markdown("---")
         
-        # Botão para fonte original externa se o usuário quiser ir direto ao site oficial
+        # Botão para fonte original externa
         col_ext_1, col_ext_2 = str_lit.columns([2, 2])
         with col_ext_1:
             if str_lit.button("🔗 Acessar Publicação Completa no Site de Origem", use_container_width=True):
                 str_lit.markdown(f'<meta http-equiv="refresh" content="0; url={artigo_atual["link"]}">', unsafe_allow_html=True)
                 str_lit.rerun()
 
-        str_lit.stop() # Para a execução aqui para não renderizar a home
+        str_lit.stop()
 
 # ==============================================================================
 # 8. LAYOUT PRINCIPAL (HOME / ACERVO)
@@ -474,7 +473,7 @@ if busca:
     noticias_filtradas = [n for n in noticias_filtradas if busca.lower() in n["titulo"].lower() or busca.lower() in n["resumo"].lower()]
 
 # ==============================================================================
-# 11. GRADE DE NOTÍCIAS COM CLIQUE NAS IMAGENS E TÍTULOS
+# 11. GRADE DE NOTÍCIAS COM CLIQUE CORRIGIDO E BOTÕES DE SUPORTE
 # ==============================================================================
 str_lit.markdown("### 📰 Acervo de Documentos & Discursos Diplomáticos")
 
@@ -485,20 +484,23 @@ if len(noticias_filtradas) > 0:
             badge_orgao = render_badge(item['orgao'])
             badge_tipo = render_badge(item['tipo'])
             
-            str_lit.markdown(f"""
+            # Script JS ajustado com window.location.pathname para funcionar perfeitamente em qualquer servidor/nuvem
+            card_html = f"""
                 <div class="news-card">
-                    <div class="card-img-container" onclick="window.location.href='?article={item['id']}'">
+                    <div class="card-img-container" onclick="window.location.href = window.location.pathname + '?article={item['id']}';">
                         <img src="{item['imagem']}" class="card-img" alt="Capa" />
                     </div>
                     <div class="card-body">
                         <div>{badge_orgao}{badge_tipo}</div>
                         <div style="font-size: 11px; color: #555555; margin-bottom: 6px; font-weight: 600;">🏷️ Tema: {item['tema']} | 📍 {item['regiao']}</div>
-                        <div class="card-title" onclick="window.location.href='?article={item['id']}'">{item['titulo']}</div>
+                        <div class="card-title" onclick="window.location.href = window.location.pathname + '?article={item['id']}';">{item['titulo']}</div>
                         <div class="card-excerpt">{item['resumo']}</div>
                     </div>
                 </div>
-            """, unsafe_allow_html=True)
+            """
+            str_lit.markdown(card_html, unsafe_allow_html=True)
             
+            # Botão oficial do Streamlit como alternativa nativa infalível de acesso
             if str_lit.button(f"📖 LER COMPLETO", key=f"read_grid_{item['id']}", use_container_width=True):
                 if user_data["plan"] == "free":
                     user_data["access_count"] += 1
