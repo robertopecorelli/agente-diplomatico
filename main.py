@@ -1,6 +1,6 @@
 import streamlit as str_lit
 import feedparser
-from bs4 and BeautifulSoup  # Correção de importação estrita
+from bs4 import BeautifulSoup
 import requests
 from datetime import date
 import re
@@ -43,7 +43,7 @@ def verificar_reset_diario(username):
 verificar_reset_diario(str_lit.session_state["current_user"])
 
 # ==============================================================================
-# 3. ESTILOS CSS REFINADOS (LAYOUT SIMÉTRICO, GRID UNIFORME E ALINHAMENTO)
+# 3. ESTILOS CSS REFINADOS (GRID SIMÉTRICO E ALINHAMENTO RIGOROSO)
 # ==============================================================================
 str_lit.markdown("""
     <style>
@@ -67,14 +67,6 @@ str_lit.markdown("""
         border-right: 1px solid #E2DED6;
     }
 
-    /* BOTÕES DO TOPO E BOTÕES NATIVOS UNIFORMES */
-    .stButton button {
-        font-family: 'Plus Jakarta Sans', sans-serif !important;
-        font-weight: 600 !important;
-        border-radius: 4px !important;
-        transition: all 0.2s ease-in-out !important;
-    }
-
     /* CARDS SIMÉTRICOS E IDÊNTICOS EM ALTURA */
     .news-card {
         background: #FFFFFF;
@@ -83,9 +75,9 @@ str_lit.markdown("""
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        height: 480px; /* Altura fixa rigorosa para simetria perfeita */
+        height: 480px;
         overflow: hidden;
-        margin-bottom: 20px;
+        margin-bottom: 12px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
     }
     .card-img-container {
@@ -223,13 +215,15 @@ def carregar_noticias():
         try:
             feed = feedparser.parse(url)
             for entry in feed.entries[:12]:
-                # Extração limpa e profunda do texto descritivo
-                raw_content = entry.get("content", [{}])[0].get("value", "") or entry.get("summary", "") or entry.get("description", "")
+                raw_content = ""
+                if 'content' in entry and len(entry.content) > 0:
+                    raw_content = entry.content[0].get('value', '')
+                if not raw_content or len(raw_content.strip()) < 50:
+                    raw_content = entry.get("summary", "") or entry.get("description", "")
                 
                 soup = BeautifulSoup(raw_content, "html.parser")
                 resumo_limpo = soup.get_text()[:220].strip() + "..."
                 
-                # Imagem
                 imagem_url = FALLBACK_IMAGES[idx_count % len(FALLBACK_IMAGES)]
                 if 'media_content' in entry and len(entry.media_content) > 0:
                     imagem_url = entry.media_content[0].get('url', imagem_url)
@@ -252,7 +246,7 @@ def carregar_noticias():
                     "data": entry.get("published", "Data recente")
                 })
                 idx_count += 1
-        except Exception as e:
+        except Exception:
             continue
     return itens
 
@@ -411,12 +405,12 @@ if len(noticias_filtradas) > 0:
                             <div style="font-size: 11px; color: #555555; margin-bottom: 6px; font-weight: 600;">🏷️ {item2['tema']} | 📍 {item2['regiao']}</div>
                             <div class="card-title">{item2['titulo']}</div>
                             <div class="card-excerpt">{item2['resumo']}</div>
-                        </div>
                     </div>
-                """, unsafe_allow_html=True)
-                if str_lit.button("📖 ABRIR NOTÍCIA COMPLETA", key=f"btn_{item2['id']}", use_container_width=True):
-                    str_lit.query_params["article"] = str(item2['id'])
-                    str_lit.rerun()
+                </div>
+            """, unsafe_allow_html=True)
+            if str_lit.button("📖 ABRIR NOTÍCIA COMPLETA", key=f"btn_{item2['id']}", use_container_width=True):
+                str_lit.query_params["article"] = str(item2['id'])
+                str_lit.rerun()
         else:
             with row_cols[1]:
                 str_lit.markdown("<div style='height: 480px;'></div>", unsafe_allow_html=True)
