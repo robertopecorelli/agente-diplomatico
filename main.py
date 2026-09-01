@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import feedparser
 from datetime import datetime, date
 import re
@@ -62,11 +63,10 @@ def enviar_email_confirmacao(email_destino, nome_usuario):
     st.toast(f"📧 E-mail de confirmação enviado para: {email_destino}", icon="📩")
 
 # ==============================================================================
-# 4. ESTILOS CSS PERSONALIZADOS (FONTES EDITORIAIS E BANNER)
+# 4. ESTILOS CSS PERSONALIZADOS (PALETA & TIPOGRAFIA EDITORIAL)
 # ==============================================================================
 st.markdown("""
     <style>
-    /* Fontes do portal de referência: Playfair Display para títulos, Inter para corpo de texto */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap');
 
     html, body, [class*="stApp"] {
@@ -75,7 +75,6 @@ st.markdown("""
         color: #262626 !important;
     }
 
-    /* Headings globais */
     h1, h2, h3, h4, h5, h6 {
         font-family: 'Playfair Display', serif !important;
         color: #262626 !important;
@@ -84,18 +83,6 @@ st.markdown("""
     section[data-testid="stSidebar"] {
         background-color: #E6DCB8 !important;
         border-right: 1px solid #D19A7D;
-    }
-
-    /* Cabeçalho Principal */
-    .portal-header-title {
-        font-family: 'Playfair Display', serif;
-        font-size: 26px;
-        font-weight: 800;
-        color: #262626;
-        letter-spacing: 1px;
-        margin: 0;
-        padding-top: 4px;
-        text-transform: uppercase;
     }
 
     /* Botões Compactos do Menu Superior */
@@ -128,59 +115,6 @@ st.markdown("""
     }
     .top-nav-btn-secondary button:hover {
         background-color: rgba(209, 154, 125, 0.2) !important;
-    }
-
-    /* BANNER DE DESTAQUE (HERO) */
-    .hero-banner {
-        width: 100%;
-        height: 420px;
-        border-radius: 8px;
-        background-size: cover;
-        background-position: center 20%;
-        position: relative;
-        margin-bottom: 24px;
-        display: flex;
-        align-items: flex-end;
-        overflow: hidden;
-        border: 1px solid #D19A7D;
-        box-shadow: 0 4px 15px rgba(38, 38, 38, 0.15);
-    }
-    .hero-overlay {
-        background: linear-gradient(to top, rgba(38,38,38,0.95) 0%, rgba(38,38,38,0.5) 40%, rgba(0,0,0,0.1) 100%);
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        top: 0; left: 0;
-    }
-    .hero-content {
-        position: relative;
-        z-index: 2;
-        padding: 40px;
-        color: #F0E6D2;
-        width: 100%;
-    }
-    .hero-tag {
-        background-color: #B76D4D;
-        color: #FFFFFF;
-        font-family: 'Inter', sans-serif;
-        font-size: 10.5px;
-        font-weight: 800;
-        padding: 4px 10px;
-        border-radius: 4px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-bottom: 16px;
-        display: inline-block;
-    }
-    .hero-title {
-        font-family: 'Playfair Display', serif;
-        font-size: 34px;
-        font-weight: 700;
-        margin: 0;
-        line-height: 1.25;
-        color: #FFFFFF;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.6);
-        max-width: 90%;
     }
 
     /* Cards de Notícias da Grade */
@@ -291,15 +225,19 @@ def carregar_noticias():
 acervo_noticias = carregar_noticias()
 
 # ==============================================================================
-# 6. MENU SUPERIOR ALINHADO (TIPOGRAFIA EDITORIAL)
+# 6. MENU SUPERIOR ALINHADO (TÍTULO COM DUAS CORES E FONTE MAIOR)
 # ==============================================================================
 user_cur = st.session_state["current_user"]
 user_data = st.session_state["users_db"].get(user_cur, {"plan": "free", "access_count": 0})
 
-col_title, col_top_actions = st.columns([2.5, 1.5])
+col_title, col_top_actions = st.columns([2.3, 1.7])
 
 with col_title:
-    st.markdown('<div class="portal-header-title">REPOSITÓRIO DIPLOMÁTICO</div>', unsafe_allow_html=True)
+    st.markdown("""
+        <div style="font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 800; letter-spacing: 1px; margin: 0; padding-top: 2px;">
+            <span style="color: #1F2937;">Repositório</span> <span style="color: #B76D4D;">Diplomático</span>
+        </div>
+    """, unsafe_allow_html=True)
 
 with col_top_actions:
     col_nav_1, col_nav_2 = st.columns([1, 1])
@@ -406,55 +344,202 @@ if busca:
     noticias_filtradas = [n for n in noticias_filtradas if busca.lower() in n["titulo"].lower() or busca.lower() in n["resumo"].lower()]
 
 # ==============================================================================
-# 10. RENDERIZAÇÃO DO BANNER HERÓI E DA GRADE DE NOTÍCIAS
+# 10. CARROSSEL AUTOMÁTICO NO TOPO E GRADE DE NOTÍCIAS
 # ==============================================================================
 if len(noticias_filtradas) > 0:
-    # Destaca a primeira notícia no Banner do Topo
-    destaque = noticias_filtradas[0]
-    
-    st.markdown(f"""
-        <div class="hero-banner" style="background-image: url('{destaque['imagem']}');">
-            <div class="hero-overlay"></div>
-            <div class="hero-content">
-                <span class="hero-tag">{destaque['orgao']} • {destaque['tipo']} | 📍 {destaque['regiao']}</span>
-                <h1 class="hero-title">{destaque['titulo']}</h1>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown('<div class="top-nav-btn top-nav-btn-secondary" style="margin-bottom: 24px;">', unsafe_allow_html=True)
-    if st.button("📖 LER DESTAQUE COMPLETO", key="read_hero", use_container_width=True):
-        if user_data["plan"] == "free":
-            user_data["access_count"] += 1
-        st.markdown(f'<meta http-equiv="refresh" content="0; url={destaque["link"]}">', unsafe_allow_html=True)
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Monta os dados dos slides para o carrossel automático em JS/HTML
+    slides_js = ""
+    for item in noticias_filtradas[:4]:
+        titulo_limpo = item['titulo'].replace('"', '\\"')
+        slides_js += f"""
+          {{
+            image: "{item['imagem']}",
+            tag: "{item['orgao']} • {item['tipo']} | 📍 {item['regiao']}",
+            title: "{titulo_limpo}"
+          }},
+        """
 
-    # Renderiza o restante das notícias na grade
-    noticias_grade = noticias_filtradas[1:]
+    carousel_html_code = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:wght@600;700&display=swap');
+      body {{ margin: 0; background: transparent; font-family: 'Inter', sans-serif; }}
+      .carousel {{
+        position: relative;
+        width: 100%;
+        height: 420px;
+        overflow: hidden;
+        border-radius: 8px;
+        border: 1px solid #D19A7D;
+        box-shadow: 0 4px 15px rgba(38, 38, 38, 0.15);
+      }}
+      .slides {{
+        display: flex;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.6s ease-in-out;
+      }}
+      .slide {{
+        min-width: 100%;
+        height: 100%;
+        background-size: cover;
+        background-position: center;
+        position: relative;
+        display: flex;
+        align-items: flex-end;
+      }}
+      .overlay {{
+        position: absolute;
+        bottom: 0; left: 0; right: 0; top: 0;
+        background: linear-gradient(to top, rgba(38,38,38,0.95) 0%, rgba(38,38,38,0.4) 50%, transparent 100%);
+      }}
+      .content {{
+        position: relative;
+        z-index: 2;
+        padding: 35px;
+        color: #F0E6D2;
+        width: 100%;
+        box-sizing: border-box;
+      }}
+      .tag {{
+        background-color: #B76D4D;
+        color: #FFFFFF;
+        font-size: 10.5px;
+        font-weight: 800;
+        padding: 4px 10px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        display: inline-block;
+        margin-bottom: 12px;
+      }}
+      .slide-title {{
+        font-family: 'Playfair Display', serif;
+        font-size: 28px;
+        font-weight: 700;
+        color: #F0E6D2 !important;
+        margin: 0;
+        line-height: 1.3;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+      }}
+      .dots {{
+        position: absolute;
+        bottom: 15px;
+        right: 25px;
+        z-index: 10;
+        display: flex;
+        gap: 8px;
+      }}
+      .dot {{
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: rgba(240, 230, 210, 0.4);
+        cursor: pointer;
+        transition: background 0.3s;
+      }}
+      .dot.active {{
+        background: #B76D4D;
+      }}
+    </style>
+    </head>
+    <body>
+      <div class="carousel">
+        <div class="slides" id="slidesContainer"></div>
+        <div class="dots" id="dotsContainer"></div>
+      </div>
+
+      <script>
+        const slidesData = [
+          {slides_js}
+        ];
+
+        const container = document.getElementById('slidesContainer');
+        const dotsContainer = document.getElementById('dotsContainer');
+        let currentIndex = 0;
+        let intervalId;
+
+        slidesData.forEach((item, index) => {{
+          const slide = document.createElement('div');
+          slide.className = 'slide';
+          slide.style.backgroundImage = `url('${{item.image}}')`;
+          slide.innerHTML = `
+            <div class="overlay"></div>
+            <div class="content">
+              <span class="tag">${{item.tag}}</span>
+              <div class="slide-title">${{item.title}}</div>
+            </div>
+          `;
+          container.appendChild(slide);
+
+          const dot = document.createElement('div');
+          dot.className = 'dot' + (index === 0 ? ' active' : '');
+          dot.addEventListener('click', () => {{
+            currentIndex = index;
+            updateCarousel();
+            resetTimer();
+          }});
+          dotsContainer.appendChild(dot);
+        }});
+
+        function updateCarousel() {{
+          container.style.transform = `translateX(-${{currentIndex * 100}}%)`;
+          const dots = document.querySelectorAll('.dot');
+          dots.forEach((dot, idx) => {{
+            dot.classList.toggle('active', idx === currentIndex);
+          }});
+        }}
+
+        function nextSlide() {{
+          currentIndex = (currentIndex + 1) % slidesData.length;
+          updateCarousel();
+        }}
+
+        function startTimer() {{
+          intervalId = setInterval(nextSlide, 4500);
+        }}
+
+        function resetTimer() {{
+          clearInterval(intervalId);
+          startTimer();
+        }}
+
+        startTimer();
+      </script>
+    </body>
+    </html>
+    """
     
-    if len(noticias_grade) > 0:
-        grid_cols = st.columns(2)
-        for idx, item in enumerate(noticias_grade):
-            with grid_cols[idx % 2]:
-                st.markdown(f"""
-                    <div class="news-card">
-                        <div class="card-img-container">
-                            <img src="{item['imagem']}" class="card-img" alt="Capa" />
-                        </div>
-                        <div class="card-body">
-                            <div class="meta-tag">{item['orgao']} • {item['tipo']} | 📍 {item['regiao']}</div>
-                            <div class="card-title">{item['titulo']}</div>
-                            <div style="font-family:'Inter', sans-serif; font-size:11.5px; font-weight:700; color:#B76D4D; margin-bottom:10px;">🏷️ Tema: {item['tema']}</div>
-                            <div class="card-excerpt">{item['resumo']}</div>
-                        </div>
+    # Exibe o carrossel automático no topo
+    components.html(carousel_html_code, height=435)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("### 📰 Demais Documentos & Notícias do Acervo")
+
+    # Grade de notícias restantes
+    grid_cols = st.columns(2)
+    for idx, item in enumerate(noticias_filtradas):
+        with grid_cols[idx % 2]:
+            st.markdown(f"""
+                <div class="news-card">
+                    <div class="card-img-container">
+                        <img src="{item['imagem']}" class="card-img" alt="Capa" />
                     </div>
-                """, unsafe_allow_html=True)
-                
-                if st.button(f"📖 LER DOCUMENTO COMPLETO", key=f"read_grid_{idx}"):
-                    if user_data["plan"] == "free":
-                        user_data["access_count"] += 1
-                    st.markdown(f'<meta http-equiv="refresh" content="0; url={item["link"]}">', unsafe_allow_html=True)
-                    st.rerun()
+                    <div class="card-body">
+                        <div class="meta-tag">{item['orgao']} • {item['tipo']} | 📍 {item['regiao']}</div>
+                        <div class="card-title">{item['titulo']}</div>
+                        <div style="font-family:'Inter', sans-serif; font-size:11.5px; font-weight:700; color:#B76D4D; margin-bottom:10px;">🏷️ Tema: {item['tema']}</div>
+                        <div class="card-excerpt">{item['resumo']}</div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            if st.button(f"📖 LER DOCUMENTO COMPLETO", key=f"read_grid_{idx}"):
+                if user_data["plan"] == "free":
+                    user_data["access_count"] += 1
+                st.markdown(f'<meta http-equiv="refresh" content="0; url={item["link"]}">', unsafe_allow_html=True)
+                st.rerun()
 else:
     st.info("Nenhum documento encontrado com os filtros atuais.")
