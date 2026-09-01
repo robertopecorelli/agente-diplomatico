@@ -19,7 +19,7 @@ stripe.api_key = STRIPE_SECRET_KEY
 # 2. CONFIGURAÇÃO DA PÁGINA STREAMLIT
 # ==============================================================================
 st.set_page_config(
-    page_title="Ubique News | Repositório Diplomático",
+    page_title="Repositório Diplomático | Acervo CACD",
     page_icon="🏛️",
     layout="wide",
     initial_sidebar_state="auto"
@@ -86,23 +86,13 @@ st.markdown("""
         border-right: 1px solid #E2DED6;
     }
 
-    /* Estilo de cabeçalho minimalista editorial */
-    .portal-header-container {
-        border-bottom: 1px solid #1A1A1A;
-        padding-bottom: 16px;
-        margin-bottom: 24px;
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-end;
-    }
-
     @media (max-width: 768px) {
         .portal-title {
-            font-size: 24px !important;
+            font-size: 22px !important;
         }
         .top-nav-btn button {
-            font-size: 9px !important;
-            padding: 2px 4px !important;
+            font-size: 9.5px !important;
+            padding: 2px 6px !important;
         }
     }
 
@@ -139,7 +129,6 @@ st.markdown("""
         color: #F7F5F0 !important;
     }
 
-    /* Cards estilo Magazine / AOC Media */
     .news-card {
         background: #FFFFFF;
         border-radius: 4px;
@@ -185,13 +174,7 @@ st.markdown("""
         line-height: 1.25;
         margin-bottom: 10px;
     }
-    .card-excerpt { 
-        font-family: 'Plus Jakarta Sans', sans-serif; 
-        font-size: 13.5px; 
-        color: #666666; 
-        line-height: 1.6; 
-        margin-bottom: 14px; 
-    }
+    .card-excerpt { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13.5px; color: #666666; line-height: 1.6; margin-bottom: 14px; }
 
     .register-header-title { font-family: 'Newsreader', serif; font-size: 32px; font-weight: 600; color: #1A1A1A; text-align: center; margin-bottom: 4px; }
     .register-header-subtitle { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; color: #666666; text-align: center; margin-bottom: 24px; }
@@ -256,17 +239,17 @@ def carregar_noticias():
 acervo_noticias = carregar_noticias()
 
 # ==============================================================================
-# 6. MENU SUPERIOR COM ESTILO EDITORIAL
+# 6. MENU SUPERIOR RESPONSIVO COM ESTILO EDITORIAL
 # ==============================================================================
 user_cur = st.session_state["current_user"]
 user_data = st.session_state["users_db"].get(user_cur, {"plan": "free", "access_count": 0})
 
-col_title, col_top_actions = st.columns([2.5, 1.5])
+col_title, col_top_actions = st.columns([2.2, 1.8])
 
 with col_title:
     st.markdown("""
-        <div class="portal-title" style="font-family: 'Newsreader', serif; font-size: 28px; font-weight: 600; letter-spacing: -0.03em; margin: 0; padding-top: 2px;">
-            <span style="color: #1A1A1A;">Ubique</span> <span style="color: #666666; font-style: italic;">News</span>
+        <div class="portal-title" style="font-family: 'Newsreader', serif; font-size: 26px; font-weight: 600; letter-spacing: -0.03em; margin: 0; padding-top: 2px;">
+            <span style="color: #1A1A1A;">Repositório</span> <span style="color: #666666; font-style: italic;">Diplomático</span>
         </div>
         <div style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11px; color: #777777; text-transform: uppercase; letter-spacing: 0.15em; margin-top: 2px; margin-bottom: 4px;">
             a sua dose diária de informação
@@ -278,7 +261,7 @@ with col_top_actions:
     with col_nav_1:
         st.markdown('<div class="top-nav-btn top-nav-btn-secondary">', unsafe_allow_html=True)
         if user_cur == "visitante":
-            if st.button("Entrar", key="top_create_account", use_container_width=True):
+            if st.button("Conta", key="top_create_account", use_container_width=True):
                 st.session_state["show_register_modal"] = True
                 st.rerun()
         else:
@@ -296,11 +279,11 @@ with col_top_actions:
 st.markdown("<hr style='border: none; border-top: 1px solid #1A1A1A; margin-top: 10px; margin-bottom: 24px;'>", unsafe_allow_html=True)
 
 # ==============================================================================
-# 7. TELA DE CADASTRO E LOGIN
+# 7. TELA DE CADASTRO
 # ==============================================================================
 if st.session_state["show_register_modal"]:
     st.markdown("""
-        <div class="register-header-title">Ubique News</div>
+        <div class="register-header-title">Criar Conta</div>
         <div class="register-header-subtitle">a sua dose diária de informação.</div>
     """, unsafe_allow_html=True)
 
@@ -323,7 +306,7 @@ if st.session_state["show_register_modal"]:
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown('<div class="top-nav-btn top-nav-btn-primary">', unsafe_allow_html=True)
-        btn_submit = st.form_submit_button("Criar Conta e Entrar", use_container_width=True)
+        btn_submit = st.form_submit_button("Criar Conta", use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
         if btn_submit:
@@ -339,7 +322,7 @@ if st.session_state["show_register_modal"]:
                 st.session_state["show_register_modal"] = False
                 st.rerun()
 
-    if st.button("Voltar à Página Inicial", use_container_width=True):
+    if st.button("Voltar ao Acervo", use_container_width=True):
         st.session_state["show_register_modal"] = False
         st.rerun()
     st.stop()
@@ -348,11 +331,11 @@ if st.session_state["show_register_modal"]:
 # 8. BARRA LATERAL (FILTROS)
 # ==============================================================================
 with st.sidebar:
-    st.markdown("### 🏛️ UBIQUE NEWS")
+    st.markdown("### 🏛️ REPOSITÓRIO")
     st.caption("a sua dose diária de informação")
     st.markdown("---")
 
-    st.markdown("### 🌍 Filtros de Geopolítica")
+    st.markdown("### 🌍 Filtros do Acervo")
     editoria_sel = st.selectbox("Fonte / Órgão:", ["Todas", "MRE (Notas)", "ONU"])
     regiao_sel = st.selectbox("Região:", ["Todas as Regiões", "América do Sul", "Europa", "Oriente Médio", "Global"])
     tema_sel = st.selectbox("Tema:", ["Todos os Temas", "Segurança & Defesa", "Economia & Comércio", "Cooperação Internacional"])
@@ -378,7 +361,7 @@ if busca:
     noticias_filtradas = [n for n in noticias_filtradas if busca.lower() in n["titulo"].lower() or busca.lower() in n["resumo"].lower()]
 
 # ==============================================================================
-# 10. CARROSSEL DE DESTAQUES & GRADE DE NOTÍCIAS (ESTILO AOC MEDIA)
+# 10. CARROSSEL AUTOMÁTICO COM ESTÉTICA EDITORIAL E GRADE DE NOTÍCIAS
 # ==============================================================================
 if len(noticias_filtradas) > 0:
     slides_js = ""
@@ -555,7 +538,7 @@ if len(noticias_filtradas) > 0:
     components.html(carousel_html_code, height=415)
     
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### Notícias em Destaque & Análises")
+    st.markdown("### 📰 Demais Documentos & Notícias do Acervo")
 
     grid_cols = st.columns(2)
     for idx, item in enumerate(noticias_filtradas):
@@ -568,16 +551,16 @@ if len(noticias_filtradas) > 0:
                     <div class="card-body">
                         <div class="meta-tag">{item['orgao']} • {item['tipo']} | 📍 {item['regiao']}</div>
                         <div class="card-title">{item['titulo']}</div>
-                        <div style="font-family:'Plus Jakarta Sans', sans-serif; font-size:11px; font-weight:600; color:#555555; margin-bottom:8px;">🏷️ Eixo: {item['tema']}</div>
+                        <div style="font-family:'Plus Jakarta Sans', sans-serif; font-size:11px; font-weight:600; color:#555555; margin-bottom:8px;">🏷️ Tema: {item['tema']}</div>
                         <div class="card-excerpt">{item['resumo']}</div>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
             
-            if st.button(f"LER MATÉRIA COMPLETA", key=f"read_grid_{idx}", use_container_width=True):
+            if st.button(f"📖 LER COMPLETO", key=f"read_grid_{idx}", use_container_width=True):
                 if user_data["plan"] == "free":
                     user_data["access_count"] += 1
                 st.markdown(f'<meta http-equiv="refresh" content="0; url={item["link"]}">', unsafe_allow_html=True)
                 st.rerun()
 else:
-    st.info("Nenhuma notícia encontrada com os filtros atuais.")
+    st.info("Nenhum documento encontrado com os filtros atuais.")
