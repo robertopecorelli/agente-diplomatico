@@ -22,7 +22,7 @@ st.set_page_config(
     page_title="Repositório Diplomático | Acervo CACD",
     page_icon="🏛️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="auto"
 )
 
 # ==============================================================================
@@ -63,7 +63,7 @@ def enviar_email_confirmacao(email_destino, nome_usuario):
     st.toast(f"📧 E-mail de confirmação enviado para: {email_destino}", icon="📩")
 
 # ==============================================================================
-# 4. ESTILOS CSS PERSONALIZADOS (PALETA & TIPOGRAFIA EDITORIAL)
+# 4. ESTILOS CSS PERSONALIZADOS E RESPONSIVOS (MOBILE-FRIENDLY)
 # ==============================================================================
 st.markdown("""
     <style>
@@ -85,6 +85,17 @@ st.markdown("""
         border-right: 1px solid #D19A7D;
     }
 
+    /* Ajustes para telas mobile */
+    @media (max-width: 768px) {
+        .portal-title {
+            font-size: 22px !important;
+        }
+        .top-nav-btn button {
+            font-size: 9.5px !important;
+            padding: 2px 6px !important;
+        }
+    }
+
     /* Botões Compactos do Menu Superior */
     .top-nav-btn button {
         font-family: 'Inter', sans-serif !important;
@@ -97,6 +108,7 @@ st.markdown("""
         min-height: 0px !important;
         margin-top: 2px !important;
         text-transform: uppercase;
+        width: 100%;
     }
 
     .top-nav-btn-primary button {
@@ -128,7 +140,7 @@ st.markdown("""
     }
     .card-img-container {
         width: 100%;
-        height: 190px;
+        height: 180px;
         overflow: hidden;
         background-color: #262626;
         position: relative;
@@ -141,30 +153,30 @@ st.markdown("""
     }
     .news-card:hover .card-img { transform: scale(1.04); }
     
-    .card-body { padding: 20px; }
+    .card-body { padding: 16px; }
     .meta-tag {
         font-family: 'Inter', sans-serif;
-        font-size: 10px;
+        font-size: 9.5px;
         font-weight: 800;
         color: #B76D4D;
         text-transform: uppercase;
         letter-spacing: 1px;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
     }
     .card-title {
         font-family: 'Playfair Display', serif;
-        font-size: 19px;
+        font-size: 17.5px;
         font-weight: 700;
         color: #262626;
-        line-height: 1.35;
-        margin-bottom: 10px;
+        line-height: 1.3;
+        margin-bottom: 8px;
     }
-    .card-excerpt { font-family: 'Inter', sans-serif; font-size: 13.5px; color: #4A4A4A; line-height: 1.6; margin-bottom: 12px; }
+    .card-excerpt { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A4A4A; line-height: 1.5; margin-bottom: 10px; }
 
     /* Modal / Form de Cadastro */
-    .register-header-title { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; color: #262626; text-align: center; margin-bottom: 4px; }
-    .register-header-subtitle { font-family: 'Inter', sans-serif; font-size: 14px; color: #736B63; text-align: center; margin-bottom: 24px; }
-    .field-label { font-family: 'Inter', sans-serif; font-size: 10.5px; font-weight: 800; color: #262626; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+    .register-header-title { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: #262626; text-align: center; margin-bottom: 4px; }
+    .register-header-subtitle { font-family: 'Inter', sans-serif; font-size: 13px; color: #736B63; text-align: center; margin-bottom: 20px; }
+    .field-label { font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 800; color: #262626; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -205,7 +217,7 @@ def carregar_noticias():
     for nome, (url, orgao, tipo) in FONTES.items():
         feed = feedparser.parse(url)
         for entry in feed.entries[:8]:
-            resumo = re.sub('<[^<]+?>', '', entry.get("summary", entry.get("description", "")))[:180] + "..."
+            resumo = re.sub('<[^<]+?>', '', entry.get("summary", entry.get("description", "")))[:160] + "..."
             imagem_url = extrair_url_imagem(entry, idx_count)
             
             itens.append({
@@ -225,26 +237,26 @@ def carregar_noticias():
 acervo_noticias = carregar_noticias()
 
 # ==============================================================================
-# 6. MENU SUPERIOR ALINHADO (TÍTULO COM DUAS CORES E FONTE MAIOR)
+# 6. MENU SUPERIOR RESPONSIVO (TÍTULO COM DUAS CORES)
 # ==============================================================================
 user_cur = st.session_state["current_user"]
 user_data = st.session_state["users_db"].get(user_cur, {"plan": "free", "access_count": 0})
 
-col_title, col_top_actions = st.columns([2.3, 1.7])
+col_title, col_top_actions = st.columns([2.1, 1.9])
 
 with col_title:
     st.markdown("""
-        <div style="font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 800; letter-spacing: 1px; margin: 0; padding-top: 2px;">
+        <div class="portal-title" style="font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 800; letter-spacing: 0.5px; margin: 0; padding-top: 4px;">
             <span style="color: #1F2937;">Repositório</span> <span style="color: #B76D4D;">Diplomático</span>
         </div>
     """, unsafe_allow_html=True)
 
 with col_top_actions:
-    col_nav_1, col_nav_2 = st.columns([1, 1])
+    col_nav_1, col_nav_2 = st.columns(2)
     with col_nav_1:
         st.markdown('<div class="top-nav-btn top-nav-btn-secondary">', unsafe_allow_html=True)
         if user_cur == "visitante":
-            if st.button("Criar Conta", key="top_create_account", use_container_width=True):
+            if st.button("Conta", key="top_create_account", use_container_width=True):
                 st.session_state["show_register_modal"] = True
                 st.rerun()
         else:
@@ -254,7 +266,7 @@ with col_top_actions:
 
     with col_nav_2:
         st.markdown('<div class="top-nav-btn top-nav-btn-primary">', unsafe_allow_html=True)
-        if st.button("Assine Premium", key="top_subscribe", use_container_width=True):
+        if st.button("Assinar", key="top_subscribe", use_container_width=True):
             st.session_state["show_plans_modal"] = True
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
@@ -277,9 +289,9 @@ if st.session_state["show_register_modal"]:
         st.markdown('<div class="field-label" style="margin-top:10px;">TELEFONE INTERNACIONAL</div>', unsafe_allow_html=True)
         c_ddi, c_num = st.columns([1.5, 2.5])
         with c_ddi:
-            pais_codigo = st.selectbox("DDI", ["🇧🇷 +55 Brasil", "🇺🇸 +1 EUA", "🇵🇹 +351 Portugal"], label_visibility="collapsed")
+            pais_codigo = st.selectbox("DDI", ["🇧🇷 +55", "🇺🇸 +1", "🇵🇹 +351"], label_visibility="collapsed")
         with c_num:
-            telefone = st.text_input("Telefone", placeholder="Digite o número", label_visibility="collapsed")
+            telefone = st.text_input("Telefone", placeholder="Número", label_visibility="collapsed")
 
         st.markdown('<div class="field-label" style="margin-top:10px;">E-MAIL</div>', unsafe_allow_html=True)
         email = st.text_input("E-mail", placeholder="seu@email.com", label_visibility="collapsed")
@@ -294,7 +306,7 @@ if st.session_state["show_register_modal"]:
 
         if btn_submit:
             if not nome or not email or len(senha) < 6:
-                st.error("Preencha todos os campos corretamente (senha mínima: 6 caracteres).")
+                st.error("Preencha todos os campos corretamente.")
             else:
                 st.session_state["users_db"][email] = {
                     "plan": "free", "access_count": 0, "last_date": str(date.today()),
@@ -315,7 +327,7 @@ if st.session_state["show_register_modal"]:
 # ==============================================================================
 with st.sidebar:
     st.markdown("### 🏛️ REPOSITÓRIO")
-    st.caption("Inteligência e Acervo para a Carreira Diplomática")
+    st.caption("Inteligência para o CACD")
     st.markdown("---")
 
     st.markdown("### 🌍 Filtros do Acervo")
@@ -344,7 +356,7 @@ if busca:
     noticias_filtradas = [n for n in noticias_filtradas if busca.lower() in n["titulo"].lower() or busca.lower() in n["resumo"].lower()]
 
 # ==============================================================================
-# 10. CARROSSEL AUTOMÁTICO NO TOPO E GRADE DE NOTÍCIAS
+# 10. CARROSSEL AUTOMÁTICO RESPONSIVO NO TOPO E GRADE DE NOTÍCIAS
 # ==============================================================================
 if len(noticias_filtradas) > 0:
     slides_js = ""
@@ -362,17 +374,23 @@ if len(noticias_filtradas) > 0:
     <!DOCTYPE html>
     <html>
     <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:wght@600;700&display=swap');
       body {{ margin: 0; background: transparent; font-family: 'Inter', sans-serif; }}
       .carousel {{
         position: relative;
         width: 100%;
-        height: 420px;
+        height: 380px;
         overflow: hidden;
         border-radius: 8px;
         border: 1px solid #D19A7D;
         box-shadow: 0 4px 15px rgba(38, 38, 38, 0.15);
+      }}
+      @media (max-width: 768px) {{
+        .carousel {{ height: 280px; }}
+        .slide-title {{ font-size: 18px !important; }}
+        .content {{ padding: 20px !important; }}
       }}
       .slides {{
         display: flex;
@@ -397,7 +415,7 @@ if len(noticias_filtradas) > 0:
       .content {{
         position: relative;
         z-index: 2;
-        padding: 35px;
+        padding: 30px;
         color: #F0E6D2;
         width: 100%;
         box-sizing: border-box;
@@ -405,35 +423,35 @@ if len(noticias_filtradas) > 0:
       .tag {{
         background-color: #B76D4D;
         color: #FFFFFF;
-        font-size: 10.5px;
+        font-size: 10px;
         font-weight: 800;
-        padding: 4px 10px;
+        padding: 3px 8px;
         border-radius: 4px;
         text-transform: uppercase;
         letter-spacing: 1px;
         display: inline-block;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
       }}
       .slide-title {{
         font-family: 'Playfair Display', serif;
-        font-size: 28px;
+        font-size: 24px;
         font-weight: 700;
         color: #F0E6D2 !important;
         margin: 0;
-        line-height: 1.3;
+        line-height: 1.25;
         text-shadow: 0 2px 4px rgba(0,0,0,0.6);
       }}
       .dots {{
         position: absolute;
-        bottom: 15px;
-        right: 25px;
+        bottom: 12px;
+        right: 20px;
         z-index: 10;
         display: flex;
-        gap: 8px;
+        gap: 6px;
       }}
       .dot {{
-        width: 10px;
-        height: 10px;
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
         background: rgba(240, 230, 210, 0.4);
         cursor: pointer;
@@ -511,11 +529,13 @@ if len(noticias_filtradas) > 0:
     </html>
     """
     
-    components.html(carousel_html_code, height=435)
+    # Altura dinâmica ajustada para acomodar celulares (ajusta de 400px para 300px no mobile)
+    components.html(carousel_html_code, height=395)
     
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 📰 Demais Documentos & Notícias do Acervo")
 
+    # Grade inteligente: no celular o Streamlit empilha automaticamente as colunas
     grid_cols = st.columns(2)
     for idx, item in enumerate(noticias_filtradas):
         with grid_cols[idx % 2]:
@@ -527,13 +547,13 @@ if len(noticias_filtradas) > 0:
                     <div class="card-body">
                         <div class="meta-tag">{item['orgao']} • {item['tipo']} | 📍 {item['regiao']}</div>
                         <div class="card-title">{item['titulo']}</div>
-                        <div style="font-family:'Inter', sans-serif; font-size:11.5px; font-weight:700; color:#B76D4D; margin-bottom:10px;">🏷️ Tema: {item['tema']}</div>
+                        <div style="font-family:'Inter', sans-serif; font-size:11px; font-weight:700; color:#B76D4D; margin-bottom:8px;">🏷️ Tema: {item['tema']}</div>
                         <div class="card-excerpt">{item['resumo']}</div>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
             
-            if st.button(f"📖 LER DOCUMENTO COMPLETO", key=f"read_grid_{idx}"):
+            if st.button(f"📖 LER COMPLETO", key=f"read_grid_{idx}", use_container_width=True):
                 if user_data["plan"] == "free":
                     user_data["access_count"] += 1
                 st.markdown(f'<meta http-equiv="refresh" content="0; url={item["link"]}">', unsafe_allow_html=True)
