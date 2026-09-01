@@ -29,7 +29,7 @@ st.set_page_config(
 # ==============================================================================
 if "users_db" not in st.session_state:
     st.session_state["users_db"] = {
-        "visitante": {"plan": "free", "access_count": 0, "last_date": str(date.today())}
+        "visitante": {"plan": "free", "access_count": 0, "last_date": str(date.today()), "email": ""}
     }
 
 if "current_user" not in st.session_state:
@@ -38,11 +38,14 @@ if "current_user" not in st.session_state:
 if "show_plans_modal" not in st.session_state:
     st.session_state["show_plans_modal"] = False
 
+if "show_register_modal" not in st.session_state:
+    st.session_state["show_register_modal"] = False
+
+if "show_login_modal" not in st.session_state:
+    st.session_state["show_login_modal"] = False
+
 if "selected_plan_checkout" not in st.session_state:
     st.session_state["selected_plan_checkout"] = "mensal"
-
-if "categoria_ativa" not in st.session_state:
-    st.session_state["categoria_ativa"] = "Todas"
 
 # Processar retorno de pagamento com sucesso via Stripe
 query_params = st.query_params
@@ -62,35 +65,34 @@ def verificar_reset_diario(username):
 
 verificar_reset_diario(st.session_state["current_user"])
 
-# ==============================================================================
-# 4. FUNÇÃO PARA CRIAR SESSÃO DE CHECKOUT STRIPE
-# ==============================================================================
-def gerar_link_checkout_stripe(plano, email_usuario="cliente@exemplo.com"):
-    price_id = STRIPE_PRICE_MONTHLY if plano == "mensal" else STRIPE_PRICE_YEARLY
-    try:
-        checkout_session = stripe.checkout.Session.create(
-            customer_email=email_usuario if "@" in email_usuario else None,
-            payment_method_types=['card', 'boleto'],
-            line_items=[{'price': price_id, 'quantity': 1}],
-            mode='subscription',
-            success_url=f"{DOMAIN_URL}/?payment=success",
-            cancel_url=f"{DOMAIN_URL}/?payment=cancel",
-        )
-        return checkout_session.url
-    except Exception as e:
-        return f"{DOMAIN_URL}/?payment=success"
+def enviar_email_confirmacao(email_destino, nome_usuario):
+    # Simulação do envio de e-mail de confirmação de cadastro
+    st.toast(f"📧 E-mail de confirmação enviado com sucesso para: {email_destino}", icon="📩")
 
 # ==============================================================================
-# 5. ESTILOS CSS PERSONALIZADOS
+# 4. ESTILOS CSS PERSONALIZADOS (PALETA DE CORES SOLICITADA)
 # ==============================================================================
+# Paleta:
+# #F0E6D2 - Fundo geral (creme/pergaminho)
+# #262626 - Grafite escuro (textos, títulos e barras de topo)
+# #D19A7D - Terracota suave (bordas, realces e detalhes)
+# #B76D4D - Terracota intenso (destaques principais, badges e botões)
+
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Cinzel:wght@600;700;800&display=swap');
 
     html, body, [class*="stApp"] {
-        background-color: #F8F9FA !important;
+        background-color: #F0E6D2 !important;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        color: #0F172A;
+        color: #262626 !important;
+    }
+
+    /* Sidebar Background */
+    section[data-testid="stSidebar"] {
+        background-color: #E6DC880 !important;
+        background: #EAE0CB !important;
+        border-right: 1px solid #D19A7D;
     }
 
     /* Cabeçalho Principal */
@@ -98,24 +100,24 @@ st.markdown("""
         font-family: 'Cinzel', serif;
         font-size: 28px;
         font-weight: 700;
-        color: #0F172A;
+        color: #262626;
         letter-spacing: 2.5px;
         margin: 0;
     }
 
     /* Banner Promocional da Sidebar */
     .sidebar-premium-banner {
-        background: linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
-        border: 1px solid #334155;
+        background: #262626;
+        border: 1px solid #D19A7D;
         border-radius: 10px;
         padding: 20px;
-        color: #FFFFFF;
+        color: #F0E6D2;
         margin-bottom: 20px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     }
 
     .banner-badge {
-        background-color: #D97706;
+        background-color: #B76D4D;
         color: #FFFFFF;
         font-size: 9px;
         font-weight: 800;
@@ -130,19 +132,19 @@ st.markdown("""
         font-size: 20px;
         font-weight: 700;
         margin: 10px 0 6px 0;
-        color: #FFFFFF;
+        color: #F0E6D2;
     }
 
     .banner-subtitle {
         font-size: 12px;
-        color: #94A3B8;
+        color: #D19A7D;
         line-height: 1.4;
         margin-bottom: 14px;
     }
 
     .banner-benefits {
         font-size: 11.5px;
-        color: #E2E8F0;
+        color: #F0E6D2;
         margin-bottom: 16px;
         padding-left: 0;
         list-style: none;
@@ -152,109 +154,97 @@ st.markdown("""
         margin-bottom: 6px;
     }
 
-    /* Modal de Seleção de Planos */
-    .plans-modal-container {
-        display: flex;
-        flex-direction: row;
-        border-radius: 12px;
-        overflow: hidden;
-        border: 1px solid #334155;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-        margin: 10px auto 25px auto;
-        max-width: 920px;
-    }
-
-    .plans-left-panel {
-        background-color: #0F172A;
-        color: #F8F9FA;
-        padding: 35px;
-        flex: 1.1;
-    }
-
-    .plans-right-panel {
-        background-color: #FFFFFF;
-        color: #0F172A;
-        padding: 35px;
-        flex: 1;
-        border-left: 1px solid #E2E8F0;
-    }
-
-    .premium-title { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; margin-bottom: 4px; color: #FFFFFF; }
-    .premium-subtitle { font-size: 13px; color: #94A3B8; margin-bottom: 20px; }
-
-    .feature-list { list-style: none; padding: 0; margin: 0 0 25px 0; }
-    .feature-item { font-size: 13.5px; font-weight: 600; margin-bottom: 10px; color: #E2E8F0; }
-
-    .plan-card-dark {
-        border: 1px solid #334155;
-        border-radius: 8px;
-        padding: 14px;
-        margin-bottom: 12px;
-        background: #1E293B;
-        position: relative;
-    }
-
-    .plan-card-dark.active { border: 2px solid #D97706; }
-    .plan-card-header { font-size: 10px; font-weight: 800; letter-spacing: 1.5px; color: #94A3B8; text-transform: uppercase; }
-    .plan-price { font-size: 24px; font-weight: 800; color: #FFFFFF; margin: 2px 0; }
-    .plan-price span { font-size: 13px; font-weight: 500; color: #94A3B8; }
-    .plan-badge { position: absolute; top: 12px; right: 12px; background: #D97706; color: #FFFFFF; font-size: 8.5px; font-weight: 800; padding: 2px 7px; border-radius: 20px; text-transform: uppercase; }
-
-    /* Botão Dourado Premium */
-    .btn-gold button {
-        background-color: #D97706 !important;
+    /* Botão Terracota Intenso */
+    .btn-terracota button {
+        background-color: #B76D4D !important;
         color: #FFFFFF !important;
         border: none !important;
         font-weight: 700 !important;
         letter-spacing: 1px !important;
+        border-radius: 6px !important;
+        transition: all 0.3s ease;
+    }
+    .btn-terracota button:hover {
+        background-color: #9E583A !important;
     }
 
     /* Cards de Notícias */
-    .news-card { background: #FFFFFF; border-radius: 8px; border: 1px solid #E2E8F0; overflow: hidden; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); }
+    .news-card {
+        background: #FFFFFF;
+        border-radius: 8px;
+        border: 1px solid #D19A7D;
+        overflow: hidden;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 8px rgba(38, 38, 38, 0.05);
+    }
     .card-body { padding: 18px; }
-    .meta-tag { font-size: 10.5px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-    .card-title { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; color: #0F172A; line-height: 1.35; margin-bottom: 8px; }
-    .card-date { font-size: 11px; color: #64748B; margin-bottom: 10px; }
-    .card-excerpt { font-size: 13px; color: #334155; line-height: 1.5; margin-bottom: 12px; }
+    .meta-tag {
+        font-size: 10.5px;
+        font-weight: 700;
+        color: #B76D4D;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 6px;
+    }
+    .card-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 18px;
+        font-weight: 700;
+        color: #262626;
+        line-height: 1.35;
+        margin-bottom: 8px;
+    }
+    .card-date { font-size: 11px; color: #736B63; margin-bottom: 10px; }
+    .card-excerpt { font-size: 13px; color: #333333; line-height: 1.5; margin-bottom: 12px; }
+
+    /* Estilo da Modal de Cadastro (Replicando layout da imagem) */
+    .register-container {
+        background-color: #F0E6D2;
+        border: 1px solid #D19A7D;
+        border-radius: 12px;
+        padding: 35px 30px;
+        max-width: 520px;
+        margin: 0 auto;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    }
+    .register-header-title {
+        font-family: 'Cinzel', serif;
+        font-size: 32px;
+        font-weight: 700;
+        color: #262626;
+        text-align: center;
+        margin-bottom: 4px;
+    }
+    .register-header-subtitle {
+        font-size: 14px;
+        color: #736B63;
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    .register-section-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: #262626;
+        margin-bottom: 4px;
+    }
+    .register-section-desc {
+        font-size: 12.5px;
+        color: #666666;
+        margin-bottom: 20px;
+    }
+    .field-label {
+        font-size: 11px;
+        font-weight: 800;
+        color: #262626;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 6. COMPONENTE MODAL DE ASSINATURA
-# ==============================================================================
-def render_plans_modal():
-    st.markdown("""
-        <div class="plans-modal-container">
-            <div class="plans-left-panel">
-                <div class="premium-title">Seja Premium</div>
-                <div class="premium-subtitle">Acesso ilimitado à inteligência diplomática.</div>
-                <ul class="feature-list">
-                    <li class="feature-item">✓ Notícias e Discursos Ilimitados</li>
-                    <li class="feature-item">✓ Filtros de Região, Data e Fontes</li>
-                    <li class="feature-item">✓ Análises e acervo histórico exclusivo</li>
-                </ul>
-                <div class="plan-card-dark active">
-                    <div class="plan-card-header">PLANO MENSAL</div>
-                    <div class="plan-price">R$ 39,99 <span>/mês</span></div>
-                    <div style="font-size: 11px; color: #94A3B8;">Flexibilidade total para acompanhar mês a mês.</div>
-                </div>
-                <div class="plan-card-dark">
-                    <span class="plan-badge">MELHOR VALOR</span>
-                    <div class="plan-card-header">PLANO ANUAL</div>
-                    <div class="plan-price">R$ 399,90 <span>/ano</span></div>
-                    <div style="font-size: 11px; color: #94A3B8;">Acesso prolongado com a melhor condição econômica.</div>
-                </div>
-            </div>
-            <div class="plans-right-panel">
-                <div style="font-size: 11px; font-weight: 800; color: #64748B; letter-spacing: 1.5px; margin-bottom: 10px; text-transform: uppercase;">ASSINATURA PREMIUM</div>
-                <div style="font-size: 18px; font-weight: 700; color: #0F172A; margin-bottom: 6px;">Selecione a forma de pagamento</div>
-                <div style="font-size: 12px; color: #64748B; margin-bottom: 20px;">Você será redirecionado para o checkout seguro do Stripe.</div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-
-# ==============================================================================
-# 7. CARREGAMENTO DO ACERVO DE NOTÍCIAS & DISCURSOS
+# 5. CARREGAMENTO E MOCK DE DADOS (COM REGIÕES E TEMAS)
 # ==============================================================================
 FONTES = {
     "MRE (Notas à Imprensa)": ("https://www.gov.br/mre/pt-br/centrais-de-conteudo/notas-a-imprensa/RSS", "MRE", "Nota à Imprensa"),
@@ -265,15 +255,27 @@ FONTES = {
 @st.cache_data(ttl=1800)
 def carregar_noticias():
     itens = []
+    regioes_lista = ["América do Sul", "América do Norte", "Europa", "Ásia", "África", "Oriente Médio", "Global"]
+    temas_lista = ["Segurança & Defesa", "Economia & Comércio", "Meio Ambiente & Clima", "Direitos Humanos", "Cooperação Internacional"]
+
+    idx_count = 0
     for nome, (url, orgao, tipo) in FONTES.items():
         feed = feedparser.parse(url)
         for entry in feed.entries[:8]:
             resumo = re.sub('<[^<]+?>', '', entry.get("summary", entry.get("description", "")))[:160] + "..."
+            
+            # Atribuição dinâmica para testes dos filtros de Região e Tema
+            regiao_atribuida = regioes_lista[idx_count % len(regioes_lista)]
+            tema_atribuido = temas_lista[idx_count % len(temas_lista)]
+            idx_count += 1
+
             itens.append({
                 "titulo": entry.title,
                 "resumo": resumo,
                 "orgao": orgao,
                 "tipo": tipo,
+                "regiao": regiao_atribuida,
+                "tema": tema_atribuido,
                 "link": entry.link,
                 "data": "2026"
             })
@@ -282,23 +284,103 @@ def carregar_noticias():
 acervo_noticias = carregar_noticias()
 
 # ==============================================================================
-# 8. MENU SUPERIOR E BARRA LATERAL (ESTRUTURA COMPLETA)
+# 6. TELA / MODAL DE CADASTRO (CÓPIA DA IMAGEM DE REFERÊNCIA)
+# ==============================================================================
+def render_registro():
+    st.markdown("""
+        <div class="register-header-title">Criar Conta</div>
+        <div class="register-header-subtitle">Sua dose diária de inteligência.</div>
+        <div class="register-section-title">Dados do cadastro</div>
+        <div class="register-section-desc">Preencha suas informações básicas para criar sua conta no Repositório Diplomático.</div>
+    """, unsafe_allow_html=True)
+
+    with st.form("form_criar_conta", clear_on_submit=False):
+        st.markdown('<div class="field-label">NOME COMPLETO</div>', unsafe_allow_html=True)
+        nome = st.text_input("Nome Completo", placeholder="Seu nome completo", label_visibility="collapsed")
+
+        st.markdown('<div class="field-label" style="margin-top:12px;">TELEFONE INTERNACIONAL</div>', unsafe_allow_html=True)
+        col_ddi, col_num = st.columns([1.5, 2.5])
+        with col_ddi:
+            pais_codigo = st.selectbox("Código", ["🇧🇷 +55 Brasil", "🇺🇸 +1 EUA", "🇵🇹 +351 Portugal", "🇦🇷 +54 Argentina"], label_visibility="collapsed")
+        with col_num:
+            telefone = st.text_input("Telefone", placeholder="Digite o número", label_visibility="collapsed")
+        
+        st.caption("Selecione o país e digite o telefone local. O sistema salva o número já com o código internacional.")
+
+        st.markdown('<div class="field-label" style="margin-top:12px;">E-MAIL</div>', unsafe_allow_html=True)
+        email = st.text_input("E-mail", placeholder="seu@email.com", label_visibility="collapsed")
+
+        st.markdown('<div class="field-label" style="margin-top:12px;">SENHA</div>', unsafe_allow_html=True)
+        senha = st.text_input("Senha", type="password", placeholder="Mínimo 6 caracteres", label_visibility="collapsed")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown('<div class="btn-terracota">', unsafe_allow_html=True)
+        btn_submit = st.form_submit_button("Criar Conta", use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        if btn_submit:
+            if not nome or not email or not senha:
+                st.error("Por favor, preencha todos os campos obrigatórios.")
+            elif len(senha) < 6:
+                st.warning("A senha deve conter no mínimo 6 caracteres.")
+            else:
+                # Registra usuário na sessão
+                st.session_state["users_db"][email] = {
+                    "plan": "free",
+                    "access_count": 0,
+                    "last_date": str(date.today()),
+                    "nome": nome,
+                    "telefone": f"{pais_codigo} {telefone}",
+                    "email": email
+                }
+                st.session_state["current_user"] = email
+                enviar_email_confirmacao(email, nome)
+                st.success("Conta criada com sucesso! Verifique seu e-mail para confirmação.")
+                st.session_state["show_register_modal"] = False
+                st.rerun()
+
+    col_a, col_b = st.columns(2)
+    with col_a:
+        if st.button("Já tem uma conta? Fazer Login", use_container_width=True):
+            st.session_state["show_register_modal"] = False
+            st.session_state["show_login_modal"] = True
+            st.rerun()
+    with col_b:
+        if st.button("Continuar na versão gratuita", use_container_width=True):
+            st.session_state["show_register_modal"] = False
+            st.rerun()
+
+# ==============================================================================
+# 7. MENU SUPERIOR E BARRA LATERAL
 # ==============================================================================
 user_cur = st.session_state["current_user"]
-user_data = st.session_state["users_db"][user_cur]
+user_data = st.session_state["users_db"].get(user_cur, {"plan": "free", "access_count": 0})
 
 # Navbar Superior
-col_top_left, col_top_right = st.columns([3, 1])
+col_top_left, col_top_mid, col_top_right = st.columns([2.5, 1, 1])
 with col_top_left:
     st.markdown('<div class="portal-header-title">REPOSITÓRIO DIPLOMÁTICO</div>', unsafe_allow_html=True)
 
+with col_top_mid:
+    if user_cur == "visitante":
+        if st.button("👤 Criar Conta / Entrar", use_container_width=True):
+            st.session_state["show_register_modal"] = True
+            st.rerun()
+    else:
+        st.write(f"Olá, **{user_data.get('nome', user_cur)}**")
+
 with col_top_right:
-    st.markdown('<div class="btn-gold">', unsafe_allow_html=True)
-    if st.button("👑 SEJA PREMIUM / ASSINAR", use_container_width=True):
+    st.markdown('<div class="btn-terracota">', unsafe_allow_html=True)
+    if st.button("👑 SEJA PREMIUM", use_container_width=True):
         st.session_state["show_plans_modal"] = True
     st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown("---")
+
+# Exibição Condicional do Modal de Cadastro
+if st.session_state["show_register_modal"]:
+    render_registro()
+    st.stop()
 
 # Barra Lateral (Sidebar)
 with st.sidebar:
@@ -314,13 +396,13 @@ with st.sidebar:
             <div class="banner-subtitle">Acesso ilimitado à inteligência e análises diplomáticas.</div>
             <ul class="banner-benefits">
                 <li>✓ Notícias & Discursos Ilimitados</li>
-                <li>✓ Filtros por Região e Data</li>
+                <li>✓ Filtros por Região e Tema</li>
                 <li>✓ Análises Exclusivas</li>
             </ul>
         </div>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="btn-gold">', unsafe_allow_html=True)
+    st.markdown('<div class="btn-terracota">', unsafe_allow_html=True)
     if st.button("ASSINAR POR R$ 39,99/MÊS", key="btn_sidebar_subscribe", use_container_width=True):
         st.session_state["show_plans_modal"] = True
     st.markdown('</div>', unsafe_allow_html=True)
@@ -337,55 +419,34 @@ with st.sidebar:
             st.warning("Limite diário atingido. Assine o plano Premium para liberar acesso ilimitado.")
         st.markdown("---")
 
-    # Editorias & Navegação
-    st.markdown("### 📍 Editorias")
-    editoria_sel = st.radio(
-        "Filtrar por Fonte:",
-        ["Todas", "MRE (Notas)", "MRE (Discursos)", "ONU"],
-        index=0
+    # NOVOS FILTROS SOLICITADOS: REGIÕES E TEMAS (UBIQUE NEWS PATTERN)
+    st.markdown("### 🌐 Filtros do Acervo")
+    
+    editoria_sel = st.selectbox(
+        "Fonte / Órgão:",
+        ["Todas", "MRE (Notas)", "MRE (Discursos)", "ONU"]
+    )
+
+    regiao_sel = st.selectbox(
+        "Filtrar por Região:",
+        ["Todas as Regiões", "América do Sul", "América do Norte", "Europa", "Ásia", "África", "Oriente Médio", "Global"]
+    )
+
+    tema_sel = st.selectbox(
+        "Filtrar por Tema:",
+        ["Todos os Temas", "Segurança & Defesa", "Economia & Comércio", "Meio Ambiente & Clima", "Direitos Humanos", "Cooperação Internacional"]
     )
 
     st.markdown("---")
-    st.markdown("### 🔍 Busca no Acervo")
+    st.markdown("### 🔍 Busca")
     busca = st.text_input("Palavra-chave", placeholder="Ex: CSNU, Gaza, COP, G20")
 
 # ==============================================================================
-# 9. EXIBIÇÃO DO MODAL DE CHECKOUT STRIPE
-# ==============================================================================
-if st.session_state["show_plans_modal"]:
-    render_plans_modal()
-    
-    col_m1, col_m2, col_m3 = st.columns([1, 1, 1])
-    with col_m1:
-        if st.button("PAGAR MENSAL (R$ 39,99)", use_container_width=True):
-            url_checkout = gerar_link_checkout_stripe("mensal")
-            st.markdown(f'<meta http-equiv="refresh" content="0; url={url_checkout}">', unsafe_allow_html=True)
-    with col_m2:
-        if st.button("PAGAR ANUAL (R$ 399,90)", use_container_width=True):
-            url_checkout = gerar_link_checkout_stripe("anual")
-            st.markdown(f'<meta http-equiv="refresh" content="0; url={url_checkout}">', unsafe_allow_html=True)
-    with col_m3:
-        if st.button("FECHAR MODAL", use_container_width=True):
-            st.session_state["show_plans_modal"] = False
-            st.rerun()
-    st.stop()
-
-# Trava de limite de 10 acessos diários
-if user_data["plan"] == "free" and user_data["access_count"] >= 10:
-    st.error("🔒 Você atingiu o limite de 10 leituras gratuitas hoje. Assine para continuar acompanhando.")
-    st.markdown('<div class="btn-gold">', unsafe_allow_html=True)
-    if st.button("DESBLOQUEAR ACESSO ILIMITADO AGORA", use_container_width=True):
-        st.session_state["show_plans_modal"] = True
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.stop()
-
-# ==============================================================================
-# 10. FEED DE NOTÍCIAS & CONTADOR DE ACESSOS
+# 8. FEED DE NOTÍCIAS COM FILTROS APLICADOS
 # ==============================================================================
 noticias_filtradas = acervo_noticias
 
-# Aplicação dos Filtros de Editoria da Sidebar
+# Filtro de Fonte
 if editoria_sel == "MRE (Notas)":
     noticias_filtradas = [n for n in noticias_filtradas if n["orgao"] == "MRE" and n["tipo"] == "Nota à Imprensa"]
 elif editoria_sel == "MRE (Discursos)":
@@ -393,7 +454,15 @@ elif editoria_sel == "MRE (Discursos)":
 elif editoria_sel == "ONU":
     noticias_filtradas = [n for n in noticias_filtradas if n["orgao"] == "ONU"]
 
-# Aplicação do Filtro de Busca
+# Filtro de Região
+if regiao_sel != "Todas as Regiões":
+    noticias_filtradas = [n for n in noticias_filtradas if n["regiao"] == regiao_sel]
+
+# Filtro de Tema
+if tema_sel != "Todos os Temas":
+    noticias_filtradas = [n for n in noticias_filtradas if n["tema"] == tema_sel]
+
+# Filtro de Busca por Palavra-Chave
 if busca:
     noticias_filtradas = [n for n in noticias_filtradas if busca.lower() in n["titulo"].lower() or busca.lower() in n["resumo"].lower()]
 
@@ -403,9 +472,9 @@ for idx, item in enumerate(noticias_filtradas):
         st.markdown(f"""
             <div class="news-card">
                 <div class="card-body">
-                    <div class="meta-tag">{item['orgao']} • {item['tipo']}</div>
+                    <div class="meta-tag">{item['orgao']} • {item['tipo']} | 🌍 {item['regiao']}</div>
                     <div class="card-title">{item['titulo']}</div>
-                    <div class="card-date">Ano: {item['data']}</div>
+                    <div style="font-size:11px; font-weight:700; color:#262626; margin-bottom:6px;">🏷️ Tema: {item['tema']}</div>
                     <div class="card-excerpt">{item['resumo']}</div>
                 </div>
             </div>
