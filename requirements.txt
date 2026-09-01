@@ -2,3 +2,4 @@ streamlit
 feedparser
 beautifulsoup4
 requests
+stripe
