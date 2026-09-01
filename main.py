@@ -59,11 +59,8 @@ def verificar_reset_diario(username):
 
 verificar_reset_diario(str_lit.session_state["current_user"])
 
-def enviar_email_confirmacao(email_destino, nome_usuario):
-    str_lit.toast(f"📧 E-mail de confirmação enviado para: {email_destino}", icon="📩")
-
 # ==============================================================================
-# 4. ESTILOS CSS PERSONALIZADOS (ESTÉTICA EDITORIAL + BADGES/ÍCONES)
+# 4. ESTILOS CSS PERSONALIZADOS (ESTÉTICA AOC.MEDIA + CORES DE FAIXAS)
 # ==============================================================================
 str_lit.markdown("""
     <style>
@@ -120,7 +117,7 @@ str_lit.markdown("""
         color: #F7F5F0 !important;
     }
 
-    /* SISTEMA DE TAGS / BADGES ESTILO EDITORIAL COM CORES E ÍCONES */
+    /* BADGES E FAIXAS ESTILO AOC.MEDIA */
     .badge {
         display: inline-flex;
         align-items: center;
@@ -144,6 +141,16 @@ str_lit.markdown("""
     .badge-sg { background-color: #CCFBF1; color: #0F766E; border: 1px solid #99F6E4; }
     .badge-csonu { background-color: #FFEDD5; color: #C2410C; border: 1px solid #FED7AA; }
 
+    /* FAIXA TOPO DETALHE (AOC.MEDIA STYLE) */
+    .aoc-stripe-onu { background-color: #1D4ED8; height: 6px; width: 100%; margin-bottom: 20px; }
+    .aoc-stripe-mre { background-color: #374151; height: 6px; width: 100%; margin-bottom: 20px; }
+    .aoc-stripe-noticias { background-color: #B45309; height: 6px; width: 100%; margin-bottom: 20px; }
+    .aoc-stripe-notas { background-color: #15803D; height: 6px; width: 100%; margin-bottom: 20px; }
+    .aoc-stripe-discursos { background-color: #B91C1C; height: 6px; width: 100%; margin-bottom: 20px; }
+    .aoc-stripe-lideres { background-color: #7E22CE; height: 6px; width: 100%; margin-bottom: 20px; }
+    .aoc-stripe-sg { background-color: #0F766E; height: 6px; width: 100%; margin-bottom: 20px; }
+    .aoc-stripe-csonu { background-color: #C2410C; height: 6px; width: 100%; margin-bottom: 20px; }
+
     .news-card {
         background: #FFFFFF;
         border-radius: 4px;
@@ -162,6 +169,7 @@ str_lit.markdown("""
         overflow: hidden;
         background-color: #1A1A1A;
         position: relative;
+        cursor: pointer;
     }
     .card-img {
         width: 100%;
@@ -179,13 +187,15 @@ str_lit.markdown("""
         color: #1A1A1A;
         line-height: 1.25;
         margin-bottom: 10px;
+        cursor: pointer;
     }
+    .card-title:hover { color: #555555; }
     .card-excerpt { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13.5px; color: #666666; line-height: 1.6; margin-bottom: 14px; }
     </style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 5. GERADOR DE BADGES HTML COM ÍCONES MODERNOS E MINIMALISTAS
+# 5. GERADOR DE BADGES E FAIXAS HTML
 # ==============================================================================
 def render_badge(categoria):
     cat_lower = categoria.lower()
@@ -207,6 +217,18 @@ def render_badge(categoria):
         return '<span class="badge badge-discursos"><i class="fa-solid fa-bullhorn"></i> Discurso</span>'
     else:
         return f'<span class="badge badge-mre"><i class="fa-solid fa-tag"></i> {categoria}</span>'
+
+def get_stripe_class(categoria):
+    cat_lower = categoria.lower()
+    if "conselho de segurança" in cat_lower or "csonu" in cat_lower: return "aoc-stripe-csonu"
+    elif "secretário-geral" in cat_lower or "sg" in cat_lower: return "aoc-stripe-sg"
+    elif "líderes" in cat_lower or "chefe de estado" in cat_lower: return "aoc-stripe-lideres"
+    elif "onu" in cat_lower: return "aoc-stripe-onu"
+    elif "mre" in cat_lower: return "aoc-stripe-mre"
+    elif "notícia" in cat_lower or "noticia" in cat_lower: return "aoc-stripe-noticias"
+    elif "nota" in cat_lower: return "aoc-stripe-notas"
+    elif "discurso" in cat_lower: return "aoc-stripe-discursos"
+    else: return "aoc-stripe-mre"
 
 # ==============================================================================
 # 6. EXTRATOR E CARREGAMENTO DE FEED COM CLASSIFICAÇÃO DE TEMAS DE ORIGEM
@@ -240,7 +262,6 @@ def carregar_noticias():
     itens = []
     regioes_lista = ["América do Sul", "Europa", "Oriente Médio", "Global"]
     
-    # Classificações estendidas solicitadas extraídas das origens/conteúdos
     tipos_possiveis = [
         "Notícia", 
         "Nota", 
@@ -250,7 +271,6 @@ def carregar_noticias():
         "Conselho de Segurança"
     ]
     
-    # Temas extraídos/mapeados das fontes institucionais de origem
     temas_origem = [
         "Paz e Segurança Internacionais", 
         "Direitos Humanos", 
@@ -264,35 +284,98 @@ def carregar_noticias():
     for nome, (url, orgao, tipo_base) in FONTES.items():
         feed = feedparser.parse(url)
         for entry in feed.entries[:10]:
-            resumo = re.sub('<[^<]+?>', '', entry.get("summary", entry.get("description", "")))[:160] + "..."
+            resumo = re.sub('<[^<]+?>', '', entry.get("summary", entry.get("description", "")))[:250] + "..."
+            texto_completo = re.sub('<[^<]+?>', '', entry.get("summary", entry.get("description", "")))
             imagem_url = extrair_url_imagem(entry, idx_count)
             tipo_atribuido = tipos_possiveis[idx_count % len(tipos_possiveis)]
             tema_atribuido = temas_origem[idx_count % len(temas_origem)]
             
-            # Tentar capturar tags/categorias diretamente do RSS se houver
             if 'tags' in entry and len(entry.tags) > 0:
                 tema_atribuido = entry.tags[0].get('term', tema_atribuido)
 
             itens.append({
+                "id": idx_count,
                 "titulo": entry.title,
                 "resumo": resumo,
+                "conteudo_completo": texto_completo if len(texto_completo) > 50 else f"Conteúdo institucional oficial obtido através do feed de origem. {resumo}",
                 "orgao": orgao,
                 "tipo": tipo_atribuido,
                 "tema": tema_atribuido,
                 "regiao": regioes_lista[idx_count % len(regioes_lista)],
                 "imagem": imagem_url,
-                "link": entry.link
+                "link": entry.link,
+                "data": entry.get("published", "Data recente")
             })
             idx_count += 1
     return itens
 
 acervo_noticias = carregar_noticias()
-
-# Extração dinâmica de temas únicos obtidos das fontes de origem para o selectbox da sidebar
 temas_disponiveis = sorted(list(set([item["tema"] for item in acervo_noticias])))
 
 # ==============================================================================
-# 7. MENU SUPERIOR
+# 7. VERIFICAÇÃO DE ROTEAMENTO (PÁGINA DETALHADA VS HOME)
+# ==============================================================================
+article_id_param = str_lit.query_params.get("article", None)
+
+if article_id_param is not None:
+    try:
+        art_idx = int(article_id_param)
+        artigo_atual = next((item for item in acervo_noticias if item["id"] == art_idx), None)
+    except:
+        artigo_atual = None
+
+    if artigo_atual:
+        # PÁGINA INTERNA DE DETALHES (LAYOUT AOC.MEDIA)
+        stripe_classe = get_stripe_class(artigo_atual['tipo'])
+        
+        # Barra superior colorida característica do tipo na aoc.media
+        str_lit.markdown(f'<div class="{stripe_classe}"></div>', unsafe_allow_html=True)
+        
+        col_voltar, col_lang = str_lit.columns([3, 1])
+        with col_voltar:
+            if str_lit.button("← Voltar ao Repositório", use_container_width=False):
+                str_lit.query_params.clear()
+                str_lit.rerun()
+        
+        with col_lang:
+            idioma_sel = str_lit.selectbox("🌐 Idioma / Language", ["Português (PT)", "English (EN)", "Español (ES)", "Français (FR)"], key="select_lang")
+
+        str_lit.markdown("<br>", unsafe_allow_html=True)
+        
+        # Badges e Metadados
+        str_lit.markdown(f"<div>{render_badge(artigo_atual['orgao'])}{render_badge(artigo_atual['tipo'])}</div>", unsafe_allow_html=True)
+        str_lit.markdown(f"<div style='font-size: 13px; color: #555555; margin-top: 4px; font-weight: 500;'>🏷️ Tema: {artigo_atual['tema']} &nbsp;|&nbsp; 📍 {artigo_atual['regiao']} &nbsp;|&nbsp; 📅 {artigo_atual['data']}</div>", unsafe_allow_html=True)
+        
+        # Título Estilo Editorial
+        str_lit.markdown(f"<h1 style='font-family: Newsreader, serif; font-size: 34px; margin-top: 15px; margin-bottom: 20px; line-height: 1.2;'>{artigo_atual['titulo']}</h1>", unsafe_allow_html=True)
+        
+        # Imagem de Capa
+        str_lit.markdown(f"""
+            <div style="width: 100%; max-height: 450px; overflow: hidden; border-radius: 4px; margin-bottom: 25px; border: 1px solid #E2DED6;">
+                <img src="{artigo_atual['imagem']}" style="width: 100%; object-fit: cover;" alt="Capa" />
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Texto / Corpo da Notícia
+        str_lit.markdown(f"""
+            <div style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 16px; color: #2A2A2A; line-height: 1.8; margin-bottom: 30px;">
+                <p>{artigo_atual['conteudo_completo']}</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        str_lit.markdown("---")
+        
+        # Botão para fonte original externa se o usuário quiser ir direto ao site oficial
+        col_ext_1, col_ext_2 = str_lit.columns([2, 2])
+        with col_ext_1:
+            if str_lit.button("🔗 Acessar Publicação Completa no Site de Origem", use_container_width=True):
+                str_lit.markdown(f'<meta http-equiv="refresh" content="0; url={artigo_atual["link"]}">', unsafe_allow_html=True)
+                str_lit.rerun()
+
+        str_lit.stop() # Para a execução aqui para não renderizar a home
+
+# ==============================================================================
+# 8. LAYOUT PRINCIPAL (HOME / ACERVO)
 # ==============================================================================
 user_cur = str_lit.session_state["current_user"]
 user_data = str_lit.session_state["users_db"].get(user_cur, {"plan": "free", "access_count": 0})
@@ -331,7 +414,7 @@ with col_top_actions:
 str_lit.markdown("<hr style='border: none; border-top: 1px solid #1A1A1A; margin-top: 10px; margin-bottom: 24px;'>", unsafe_allow_html=True)
 
 # ==============================================================================
-# 8. BARRA LATERAL (FILTROS COM CATEGORIAS E TEMAS DE ORIGEM)
+# 9. BARRA LATERAL (FILTROS)
 # ==============================================================================
 with str_lit.sidebar:
     str_lit.markdown("### 🏛️ REPOSITÓRIO")
@@ -340,7 +423,6 @@ with str_lit.sidebar:
 
     str_lit.markdown("### 🏷️ Classificação & Filtros")
     
-    # Opções atualizadas conforme solicitado
     opcoes_categoria = [
         "Todas", 
         "ONU", 
@@ -354,17 +436,14 @@ with str_lit.sidebar:
     ]
     
     categoria_sel = str_lit.selectbox("Categoria / Órgão / Seção:", opcoes_categoria)
-    
-    # Filtro por Tema extraído das origens
     tema_sel = str_lit.selectbox("Tema (Origem):", ["Todos os Temas"] + temas_disponiveis)
-    
     regiao_sel = str_lit.selectbox("Região:", ["Todas as Regiões", "América do Sul", "Europa", "Oriente Médio", "Global"])
 
     str_lit.markdown("---")
     busca = str_lit.text_input("🔍 Busca por palavra-chave", placeholder="Ex: G20, COP, CSNU")
 
 # ==============================================================================
-# 9. LÓGICA DE FILTRAGEM
+# 10. LÓGICA DE FILTRAGEM
 # ==============================================================================
 noticias_filtradas = acervo_noticias
 
@@ -395,7 +474,7 @@ if busca:
     noticias_filtradas = [n for n in noticias_filtradas if busca.lower() in n["titulo"].lower() or busca.lower() in n["resumo"].lower()]
 
 # ==============================================================================
-# 10. GRADE DE NOTÍCIAS COM BADGES E ÍCONES MODERNOS
+# 11. GRADE DE NOTÍCIAS COM CLIQUE NAS IMAGENS E TÍTULOS
 # ==============================================================================
 str_lit.markdown("### 📰 Acervo de Documentos & Discursos Diplomáticos")
 
@@ -408,22 +487,22 @@ if len(noticias_filtradas) > 0:
             
             str_lit.markdown(f"""
                 <div class="news-card">
-                    <div class="card-img-container">
+                    <div class="card-img-container" onclick="window.location.href='?article={item['id']}'">
                         <img src="{item['imagem']}" class="card-img" alt="Capa" />
                     </div>
                     <div class="card-body">
                         <div>{badge_orgao}{badge_tipo}</div>
                         <div style="font-size: 11px; color: #555555; margin-bottom: 6px; font-weight: 600;">🏷️ Tema: {item['tema']} | 📍 {item['regiao']}</div>
-                        <div class="card-title">{item['titulo']}</div>
+                        <div class="card-title" onclick="window.location.href='?article={item['id']}'">{item['titulo']}</div>
                         <div class="card-excerpt">{item['resumo']}</div>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
             
-            if str_lit.button(f"📖 LER COMPLETO", key=f"read_grid_{idx}", use_container_width=True):
+            if str_lit.button(f"📖 LER COMPLETO", key=f"read_grid_{item['id']}", use_container_width=True):
                 if user_data["plan"] == "free":
                     user_data["access_count"] += 1
-                str_lit.markdown(f'<meta http-equiv="refresh" content="0; url={item["link"]}">', unsafe_allow_html=True)
+                str_lit.query_params["article"] = str(item['id'])
                 str_lit.rerun()
 else:
     str_lit.info("Nenhum documento ou discurso encontrado com os filtros atuais.")
