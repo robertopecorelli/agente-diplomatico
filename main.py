@@ -59,7 +59,7 @@ def verificar_reset_diario(username):
 verificar_reset_diario(str_lit.session_state["current_user"])
 
 # ==============================================================================
-# 4. ESTILOS CSS REFINADOS (IMAGENS, GRÁFICOS E TIPOGRAFIA)
+# 4. ESTILOS CSS REFINADOS (IMAGENS ADAPTADAS, GRÁFICOS E TIPOGRAFIA)
 # ==============================================================================
 str_lit.markdown("""
     <style>
@@ -214,14 +214,6 @@ str_lit.markdown("""
         border: 1px solid #E2DED6;
         box-shadow: 0 4px 12px rgba(0,0,0,0.04);
     }
-    .article-container figcaption {
-        text-align: center;
-        font-size: 13px;
-        color: #666666;
-        margin-top: -20px;
-        margin-bottom: 25px;
-        font-style: italic;
-    }
     .article-container table {
         width: 100%;
         border-collapse: collapse;
@@ -298,81 +290,45 @@ def get_stripe_class(categoria):
     else: return "aoc-stripe-mre"
 
 # ==============================================================================
-# 6. EXTRATOR ROBUSTO COM FALLBACK COMPLETO DE CONTEÚDO E IDIOMAS
+# 6. EXTRATOR INTELIGENTE E PRECISO (CONTEÚDO COMPLETO + MULTILÍNGUE)
 # ==============================================================================
-@str_lit.cache_data(ttl=3600)
-def raspar_conteudo_e_idiomas(url, fallback_rss=""):
-    try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
-            'Referer': 'https://www.google.com/'
-        }
-        response = requests.get(url, headers=headers, timeout=10)
-        
-        conteudo_html = ""
-        idiomas_disponiveis = {}
+def obter_conteudo_e_idiomas(entry_obj):
+    # 1. Tenta extrair o corpo completo estruturado do RSS oficial
+    conteudo = ""
+    if 'content' in entry_obj and len(entry_obj.content) > 0:
+        conteudo = entry_obj.content[0].get('value', '')
+    
+    if not conteudo or len(conteudo.strip()) < 50:
+        conteudo = entry_obj.get('summary', '') or entry_obj.get('description', '')
 
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            
-            for lang_link in soup.find_all('link', hreflang=True):
-                lang_code = lang_link.get('hreflang')
-                lang_href = lang_link.get('href')
-                if lang_code and lang_href:
-                    idiomas_disponiveis[lang_code.upper()] = lang_href
+    # 2. Mapeamento matemático de idiomas para portais governamentais e internacionais
+    url = entry_obj.link
+    idiomas_disponiveis = {}
+    
+    if "news.un.org" in url or "gov.br" in url:
+        if "/en/" in url:
+            idiomas_disponiveis = {
+                "PT (Português)": url.replace("/en/", "/pt/"),
+                "ES (Español)": url.replace("/en/", "/es/"),
+                "FR (Français)": url.replace("/en/", "/fr/"),
+                "EN (English)": url
+            }
+        elif "/pt/" in url:
+            idiomas_disponiveis = {
+                "EN (English)": url.replace("/pt/", "/en/"),
+                "ES (Español)": url.replace("/pt/", "/es/"),
+                "FR (Français)": url.replace("/pt/", "/fr/"),
+                "PT (Português)": url
+            }
+        else:
+            idiomas_disponiveis = {
+                "PT (Português)": url,
+                "EN (English)": url
+            }
+    else:
+        idiomas_disponiveis = {"PT (Original)": url}
 
-            for a_tag in soup.select('ul.languages li a, .language-selector a, .region-language a, .lang-select a, .language-switcher a'):
-                texto_link = a_tag.get_text(strip=True).upper()
-                href_link = a_tag.get('href')
-                if href_link and len(texto_link) <= 5:
-                    idiomas_disponiveis[texto_link] = href_link
-
-            corpo = (
-                soup.find('div', class_='field--name-body') or
-                soup.find('div', id='parent-fieldname-text') or 
-                soup.find('div', class_='field-name-body') or
-                soup.find('div', class_='node__content') or
-                soup.find('article') or 
-                soup.find('div', class_='content') or
-                soup.find('div', class_='main-content') or
-                soup.find('div', class_='entry-content') or
-                soup.find('div', id='content-core')
-            )
-            
-            if corpo:
-                for lixo in corpo(["script", "style", "nav", "header", "footer", "aside", "form", ".social-share"]):
-                    lixo.extract()
-                conteudo_html = str(corpo)
-
-        if not idiomas_disponiveis and ("news.un.org" in url or "gov.br" in url):
-            if "/en/" in url:
-                idiomas_disponiveis = {
-                    "PT (Português)": url.replace("/en/", "/pt/"),
-                    "ES (Español)": url.replace("/en/", "/es/"),
-                    "FR (Français)": url.replace("/en/", "/fr/"),
-                    "EN (English)": url
-                }
-            elif "/pt/" in url:
-                idiomas_disponiveis = {
-                    "EN (English)": url.replace("/pt/", "/en/"),
-                    "ES (Español)": url.replace("/pt/", "/es/"),
-                    "FR (Français)": url.replace("/pt/", "/fr/"),
-                    "PT (Português)": url
-                }
-
-        # Se o scraper estrutural falhar devido a restrições do servidor, garante o texto completo do RSS
-        if not conteudo_html or len(conteudo_html.strip()) < 50:
-            if fallback_rss:
-                conteudo_html = f"<div class='fallback-content'>{fallback_rss}<br><br><p style='font-size: 13px; color: #666;'><em>Conteúdo integral carregado via feed estruturado de segurança.</em></p></div>"
-            else:
-                conteudo_html = "<p>Conteúdo integral disponível diretamente no portal oficial de origem.</p>"
-
-        return conteudo_html, idiomas_disponiveis
-    except Exception:
-        fallback_final = f"<div class='fallback-content'>{fallback_rss}</div>" if fallback_rss else "<p>Conteúdo integral disponível na página oficial de origem.</p>"
-        return fallback_final, {}
+    return conteudo, idiomas_disponiveis
 
 # ==============================================================================
 # 7. CARREGADOR DE FEEDS DE NOTÍCIAS E DOCUMENTOS
@@ -423,10 +379,7 @@ def carregar_noticias():
     for nome, (url, orgao, tipo_base) in FONTES.items():
         feed = feedparser.parse(url)
         for entry in feed.entries[:10]:
-            resumo = re.sub('<[^<]+?>', '', entry.get("summary", entry.get("description", "")))[:250] + "..."
-            
-            # Captura o texto rico completo do RSS caso o site bloqueie a raspagem
-            conteudo_rss = entry.get("content", [{"value": entry.get("summary", entry.get("description", ""))}] )[0]["value"]
+            resumo_limpo = re.sub('<[^<]+?>', '', entry.get("summary", entry.get("description", "")))[:250] + "..."
             
             imagem_url = extrair_url_imagem(entry, idx_count)
             tipo_atribuido = tipos_possiveis[idx_count % len(tipos_possiveis)]
@@ -438,8 +391,8 @@ def carregar_noticias():
             itens.append({
                 "id": idx_count,
                 "titulo": entry.title,
-                "resumo": resumo,
-                "conteudo_rss": conteudo_rss,
+                "resumo": resumo_limpo,
+                "entry_raw": entry,  # Guarda o objeto bruto do feed para extração precisa
                 "orgao": orgao,
                 "tipo": tipo_atribuido,
                 "tema": tema_atribuido,
@@ -471,7 +424,8 @@ if article_id_param is not None:
         
         str_lit.markdown(f'<div class="{stripe_classe}"></div>', unsafe_allow_html=True)
         
-        conteudo_bruto, idiomas_origem = raspar_conteudo_e_idiomas(artigo_atual['link'], artigo_atual['conteudo_rss'])
+        # Extração direta e precisa do conteúdo rico e dos idiomas via objeto feedparser
+        conteudo_bruto, idiomas_origem = obter_conteudo_e_idiomas(artigo_atual['entry_raw'])
         
         col_voltar, col_lang = str_lit.columns([2.5, 1.5])
         with col_voltar:
@@ -485,8 +439,6 @@ if article_id_param is not None:
                 lang_escolhida = str_lit.selectbox("🌐 Versões em Outras Línguas", lista_langs, key="lang_select_box")
                 if lang_escolhida != "Selecione Outro Idioma..." and lang_escolhida in idiomas_origem:
                     link_idioma = idiomas_origem[lang_escolhida]
-                    if not link_idioma.startswith("http"):
-                        link_idioma = artigo_atual['link']
                     str_lit.markdown(f'<meta http-equiv="refresh" content="0; url={link_idioma}">', unsafe_allow_html=True)
             else:
                 str_lit.caption("🌐 Idioma original")
