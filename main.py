@@ -238,26 +238,38 @@ def get_stripe_class(categoria):
     else: return "aoc-stripe-mre"
 
 # ==============================================================================
-# 6. EXTRATOR DE CONTEÚDO INTEGRAL (WEBSCRAPING DA URL DE ORIGEM)
+# 6. EXTRATOR ROBUSTO DE CONTEÚDO INTEGRAL (WEBSCRAPING + RSS FALLBACK)
 # ==============================================================================
 @str_lit.cache_data(ttl=3600)
-def raspar_conteudo_integral(url):
+def raspar_conteudo_integral(url, fallback_content=""):
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-        response = requests.get(url, headers=headers, timeout=5)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
+        }
+        response = requests.get(url, headers=headers, timeout=6)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # Tenta extrair o corpo principal do site original (MRE / ONU)
-            corpo = soup.find('div', id='parent-fieldname-text') or soup.find('article') or soup.find('div', class_='content')
+            # Tenta encontrar múltiplos seletores comuns em portais de notícias (Gov.br, ONU, etc.)
+            corpo = (
+                soup.find('div', id='parent-fieldname-text') or 
+                soup.find('div', class_='field-name-body') or
+                soup.find('article') or 
+                soup.find('div', class_='content') or
+                soup.find('div', class_='node-content') or
+                soup.find('div', class_='story-body')
+            )
+            
             if corpo:
-                # Remove elementos indesejados se houverem
-                for script in corpo(["script", "style", "nav"]):
-                    script.extract()
+                for tag_lixo in corpo(["script", "style", "nav", "header", "footer"]):
+                    tag_lixo.extract()
                 return str(corpo)
     except Exception:
         pass
-    return None
+    
+    # Se o scraping direto falhar por restrição do servidor, retorna o conteúdo completo armazenado do RSS
+    return f"<p>{fallback_content}</p>"
 
 # ==============================================================================
 # 7. EXTRATOR E CARREGAMENTO DE FEED
@@ -314,6 +326,8 @@ def carregar_noticias():
         feed = feedparser.parse(url)
         for entry in feed.entries[:10]:
             resumo = re.sub('<[^<]+?>', '', entry.get("summary", entry.get("description", "")))[:250] + "..."
+            
+            # Tenta pegar o conteúdo mais completo possível disponível no RSS
             conteudo_rss = entry.get("content", [{"value": entry.get("summary", entry.get("description", ""))}] )[0]["value"]
             
             imagem_url = extrair_url_imagem(entry, idx_count)
@@ -367,7 +381,6 @@ if article_id_param is not None:
                 str_lit.rerun()
         
         with col_lang:
-            # Opções de línguas disponíveis solicitadas
             str_lit.selectbox(
                 "🌐 Idiomas Disponíveis", 
                 ["Português (PT)", "English (EN)", "Español (ES)", "Français (FR)"], 
@@ -390,8 +403,8 @@ if article_id_param is not None:
             </div>
         """, unsafe_allow_html=True)
         
-        # 5. Corpo Completo com Imagens e Notas Originais (Scraping ou RSS Enriquecido)
-        conteudo_html_integral = raspar_conteudo_integral(artigo_atual['link']) or artigo_atual['conteudo_rss']
+        # 5. Corpo Completo com Imagens e Notas Originais (Raspagem Robusta com Fallback)
+        conteudo_html_integral = raspar_conteudo_integral(artigo_atual['link'], artigo_atual['conteudo_rss'])
         
         str_lit.markdown(f"""
             <div class="article-content" style="background-color: #FFFFFF; padding: 35px; border-radius: 4px; border: 1px solid #E2DED6; margin-bottom: 30px;">
