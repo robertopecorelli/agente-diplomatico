@@ -1,3 +1,8 @@
+import streamlit as st
+import feedparser
+from datetime import datetime
+import re
+
 # ==============================================================================
 # ESTILO VISUAL EDITORIAL & MINIMALISTA
 # ==============================================================================
