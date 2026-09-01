@@ -347,7 +347,6 @@ if busca:
 # 10. CARROSSEL AUTOMÁTICO NO TOPO E GRADE DE NOTÍCIAS
 # ==============================================================================
 if len(noticias_filtradas) > 0:
-    # Monta os dados dos slides para o carrossel automático em JS/HTML
     slides_js = ""
     for item in noticias_filtradas[:4]:
         titulo_limpo = item['titulo'].replace('"', '\\"')
@@ -512,13 +511,11 @@ if len(noticias_filtradas) > 0:
     </html>
     """
     
-    # Exibe o carrossel automático no topo
     components.html(carousel_html_code, height=435)
     
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 📰 Demais Documentos & Notícias do Acervo")
 
-    # Grade de notícias restantes
     grid_cols = st.columns(2)
     for idx, item in enumerate(noticias_filtradas):
         with grid_cols[idx % 2]:
