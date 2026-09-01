@@ -18,7 +18,7 @@ stripe.api_key = STRIPE_SECRET_KEY
 # 2. CONFIGURAÇÃO DA PÁGINA STREAMLIT
 # ==============================================================================
 st.set_page_config(
-    page_title="Repositório Diplomático | Ubique Style",
+    page_title="Repositório Diplomático | MRE & ONU",
     page_icon="🏛️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -41,6 +41,9 @@ if "show_plans_modal" not in st.session_state:
 if "selected_plan_checkout" not in st.session_state:
     st.session_state["selected_plan_checkout"] = "mensal"
 
+if "categoria_ativa" not in st.session_state:
+    st.session_state["categoria_ativa"] = "Todas"
+
 # Processar retorno de pagamento com sucesso via Stripe
 query_params = st.query_params
 if query_params.get("payment") == "success":
@@ -57,7 +60,6 @@ def verificar_reset_diario(username):
             user_data["access_count"] = 0
             user_data["last_date"] = hoje_str
 
-# Reset de segurança diário
 verificar_reset_diario(st.session_state["current_user"])
 
 # ==============================================================================
@@ -76,11 +78,10 @@ def gerar_link_checkout_stripe(plano, email_usuario="cliente@exemplo.com"):
         )
         return checkout_session.url
     except Exception as e:
-        # Modo de simulação local para testes sem chave real conectada
         return f"{DOMAIN_URL}/?payment=success"
 
 # ==============================================================================
-# 5. ESTILOS CSS PERSONALIZADOS (INSPIRADO NO UBIQUE NEWS)
+# 5. ESTILOS CSS PERSONALIZADOS
 # ==============================================================================
 st.markdown("""
     <style>
@@ -92,28 +93,17 @@ st.markdown("""
         color: #0F172A;
     }
 
-    /* Menu Superior / Navbar Header */
-    .top-header-navbar {
-        background-color: #0F172A;
-        color: #FFFFFF;
-        padding: 10px 24px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 2px solid #D97706;
-        margin-bottom: 20px;
-        border-radius: 6px;
-    }
-
-    .top-header-brand {
+    /* Cabeçalho Principal */
+    .portal-header-title {
         font-family: 'Cinzel', serif;
-        font-size: 18px;
+        font-size: 28px;
         font-weight: 700;
-        letter-spacing: 2px;
-        color: #FFFFFF;
+        color: #0F172A;
+        letter-spacing: 2.5px;
+        margin: 0;
     }
 
-    /* Banner Promocional do Menu Lateral */
+    /* Banner Promocional da Sidebar */
     .sidebar-premium-banner {
         background: linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
         border: 1px solid #334155;
@@ -162,7 +152,7 @@ st.markdown("""
         margin-bottom: 6px;
     }
 
-    /* Modal de Seleção de Planos (Cópia da Referência) */
+    /* Modal de Seleção de Planos */
     .plans-modal-container {
         display: flex;
         flex-direction: row;
@@ -220,7 +210,7 @@ st.markdown("""
     }
 
     /* Cards de Notícias */
-    .news-card { background: #FFFFFF; border-radius: 8px; border: 1px solid #E2E8F0; overflow: hidden; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); }
+    .news-card { background: #FFFFFF; border-radius: 8px; border: 1px solid #E2E8F0; overflow: hidden; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); }
     .card-body { padding: 18px; }
     .meta-tag { font-size: 10.5px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
     .card-title { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; color: #0F172A; line-height: 1.35; margin-bottom: 8px; }
@@ -230,7 +220,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 6. COMPONENTE MODAL DE ASSINATURA (ESTILO UBIQUE NEWS)
+# 6. COMPONENTE MODAL DE ASSINATURA
 # ==============================================================================
 def render_plans_modal():
     st.markdown("""
@@ -292,19 +282,15 @@ def carregar_noticias():
 acervo_noticias = carregar_noticias()
 
 # ==============================================================================
-# 8. MENU SUPERIOR E BARRA LATERAL (SIDEBAR BANNER)
+# 8. MENU SUPERIOR E BARRA LATERAL (ESTRUTURA COMPLETA)
 # ==============================================================================
 user_cur = st.session_state["current_user"]
 user_data = st.session_state["users_db"][user_cur]
 
-# Navbar no Topo da Página
+# Navbar Superior
 col_top_left, col_top_right = st.columns([3, 1])
 with col_top_left:
-    st.markdown("""
-        <div style="font-family: 'Cinzel', serif; font-size: 26px; font-weight: 700; color: #0F172A; letter-spacing: 2px;">
-            UBIQUE DIPLOMACY NEWS
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="portal-header-title">REPOSITÓRIO DIPLOMÁTICO</div>', unsafe_allow_html=True)
 
 with col_top_right:
     st.markdown('<div class="btn-gold">', unsafe_allow_html=True)
@@ -314,8 +300,13 @@ with col_top_right:
 
 st.markdown("---")
 
-# Banner Promocional no Menu Lateral (Sidebar)
+# Barra Lateral (Sidebar)
 with st.sidebar:
+    st.markdown("### 🏛️ REPOSITÓRIO DIPLOMÁTICO")
+    st.caption("Acervo Oficial de Política Externa & Relações Internacionais")
+    st.markdown("---")
+
+    # Banner Promocional de Assinatura
     st.markdown("""
         <div class="sidebar-premium-banner">
             <span class="banner-badge">ASSINATURA</span>
@@ -335,21 +326,31 @@ with st.sidebar:
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown("---")
-    
-    # Meter de Acessos para Contas Gratuitas/Visitantes
+
+    # Contador de Acessos Gratuitos
     if user_data["plan"] == "free":
         acessos = user_data["access_count"]
         pct = min(100, int((acessos / 10) * 100))
-        st.caption(f"Acessos Gratuitos Hoje: **{acessos} / 10**")
+        st.markdown(f"**Acessos Gratuitos Hoje:** {acessos} / 10")
         st.progress(pct / 100)
         if acessos >= 10:
-            st.warning("Limite diário atingido. Assine o plano Premium para liberar mais leituras.")
+            st.warning("Limite diário atingido. Assine o plano Premium para liberar acesso ilimitado.")
+        st.markdown("---")
 
-    st.markdown("### 📍 Editorias & Filtros")
-    busca = st.text_input("Buscar palavra-chave", placeholder="Ex: ONU, MRE, COP")
+    # Editorias & Navegação
+    st.markdown("### 📍 Editorias")
+    editoria_sel = st.radio(
+        "Filtrar por Fonte:",
+        ["Todas", "MRE (Notas)", "MRE (Discursos)", "ONU"],
+        index=0
+    )
+
+    st.markdown("---")
+    st.markdown("### 🔍 Busca no Acervo")
+    busca = st.text_input("Palavra-chave", placeholder="Ex: CSNU, Gaza, COP, G20")
 
 # ==============================================================================
-# 9. EXIBIÇÃO DO MODAL DE CHECKOUT STRIPE OU TELA INICIAL
+# 9. EXIBIÇÃO DO MODAL DE CHECKOUT STRIPE
 # ==============================================================================
 if st.session_state["show_plans_modal"]:
     render_plans_modal()
@@ -369,7 +370,7 @@ if st.session_state["show_plans_modal"]:
             st.rerun()
     st.stop()
 
-# Trava Paywall de 10 acessos diários
+# Trava de limite de 10 acessos diários
 if user_data["plan"] == "free" and user_data["access_count"] >= 10:
     st.error("🔒 Você atingiu o limite de 10 leituras gratuitas hoje. Assine para continuar acompanhando.")
     st.markdown('<div class="btn-gold">', unsafe_allow_html=True)
@@ -380,11 +381,21 @@ if user_data["plan"] == "free" and user_data["access_count"] >= 10:
     st.stop()
 
 # ==============================================================================
-# 10. FEED DE NOTÍCIAS COMPATÍVEL COM CONTADOR DE LEITURAS
+# 10. FEED DE NOTÍCIAS & CONTADOR DE ACESSOS
 # ==============================================================================
 noticias_filtradas = acervo_noticias
+
+# Aplicação dos Filtros de Editoria da Sidebar
+if editoria_sel == "MRE (Notas)":
+    noticias_filtradas = [n for n in noticias_filtradas if n["orgao"] == "MRE" and n["tipo"] == "Nota à Imprensa"]
+elif editoria_sel == "MRE (Discursos)":
+    noticias_filtradas = [n for n in noticias_filtradas if n["orgao"] == "MRE" and n["tipo"] == "Discurso"]
+elif editoria_sel == "ONU":
+    noticias_filtradas = [n for n in noticias_filtradas if n["orgao"] == "ONU"]
+
+# Aplicação do Filtro de Busca
 if busca:
-    noticias_filtradas = [n for n in acervo_noticias if busca.lower() in n["titulo"].lower() or busca.lower() in n["resumo"].lower()]
+    noticias_filtradas = [n for n in noticias_filtradas if busca.lower() in n["titulo"].lower() or busca.lower() in n["resumo"].lower()]
 
 grid_cols = st.columns(2)
 for idx, item in enumerate(noticias_filtradas):
@@ -400,7 +411,6 @@ for idx, item in enumerate(noticias_filtradas):
             </div>
         """, unsafe_allow_html=True)
         
-        # Botão de Leitura Oficial (Contabiliza o limite de acesso)
         if st.button(f"📖 LER DOCUMENTO COMPLETO (#{idx+1})", key=f"read_{idx}"):
             if user_data["plan"] == "free":
                 user_data["access_count"] += 1
