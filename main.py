@@ -32,18 +32,8 @@ if "show_plans_modal" not in str_lit.session_state:
 if "show_register_modal" not in str_lit.session_state:
     str_lit.session_state["show_register_modal"] = False
 
-def verificar_reset_diario(username):
-    user_data = str_lit.session_state["users_db"].get(username)
-    if user_data:
-        hoje_str = str(date.today())
-        if user_data.get("last_date") != hoje_str:
-            user_data["access_count"] = 0
-            user_data["last_date"] = hoje_str
-
-verificar_reset_diario(str_lit.session_state["current_user"])
-
 # ==============================================================================
-# 3. ESTILOS CSS REFINADOS (GRID SIMÉTRICO E ALINHAMENTO RIGOROSO)
+# 3. ESTILOS CSS REFINADOS (GRID SIMÉTRICO E LEITURA IMersiva)
 # ==============================================================================
 str_lit.markdown("""
     <style>
@@ -77,7 +67,7 @@ str_lit.markdown("""
         justify-content: space-between;
         height: 480px;
         overflow: hidden;
-        margin-bottom: 12px;
+        margin-bottom: 16px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
     }
     .card-img-container {
@@ -142,9 +132,8 @@ str_lit.markdown("""
     .badge-mre { background-color: #F3F4F6; color: #374151; border: 1px solid #D1D5DB; }
     .badge-noticias { background-color: #FEF3C7; color: #B45309; border: 1px solid #FDE68A; }
     .badge-notas { background-color: #DCFCE7; color: #15803D; border: 1px solid #BBF7D0; }
-    .badge-discursos { background-color: #FEE2E2; color: #B91C1C; border: 1px solid #FECACA; }
 
-    /* CONTEÚDO EDITORIAL DA PÁGINA INTERNA */
+    /* CONTEÚDO EDITORIAL DA PÁGINA INTERNA (COMPLETO) */
     .article-container {
         background-color: #FFFFFF;
         padding: 40px;
@@ -160,7 +149,7 @@ str_lit.markdown("""
         line-height: 1.9;
         margin-bottom: 22px;
     }
-    .article-container img {
+    .article-container img, .article-container figure {
         display: block;
         max-width: 100% !important;
         height: auto !important;
@@ -185,18 +174,16 @@ def render_badge(categoria):
         return '<span class="badge badge-mre"><i class="fa-solid fa-landmark"></i> MRE</span>'
     elif "notícia" in cat or "noticia" in cat:
         return '<span class="badge badge-noticias"><i class="fa-solid fa-newspaper"></i> Notícia</span>'
-    elif "nota" in cat:
-        return '<span class="badge badge-notas"><i class="fa-solid fa-file-lines"></i> Nota</span>'
     else:
-        return '<span class="badge badge-discursos"><i class="fa-solid fa-bullhorn"></i> Discurso</span>'
+        return '<span class="badge badge-notas"><i class="fa-solid fa-file-lines"></i> Nota</span>'
 
 # ==============================================================================
-# 5. CARREGAMENTO ROBUSTO DE DADOS DOS FEEDS OFICIAIS
+# 5. CARREGAMENTO INTELIGENTE E ANTI-DUPLICAÇÃO DOS FEEDS
 # ==============================================================================
-FONTES = {
-    "MRE (Notas)": ("https://www.gov.br/mre/pt-br/centrais-de-conteudo/notas-a-imprensa/RSS", "MRE", "Nota à Imprensa"),
-    "ONU (Notícias)": ("https://news.un.org/feed/subscribe/en/news/all/rss.xml", "ONU", "Notícia")
-}
+FONTES = [
+    ("https://www.gov.br/mre/pt-br/centrais-de-conteudo/notas-a-imprensa/RSS", "MRE", "Nota à Imprensa"),
+    ("https://news.un.org/feed/subscribe/en/news/all/rss.xml", "ONU", "Notícia")
+]
 
 FALLBACK_IMAGES = [
     "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1200&q=80",
@@ -204,26 +191,41 @@ FALLBACK_IMAGES = [
     "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80"
 ]
 
-@str_lit.cache_data(ttl=1800)
+@str_lit.cache_data(ttl=900)
 def carregar_noticias():
     itens = []
+    urls_vistas = set()
     regioes_lista = ["Global", "América do Sul", "Europa", "Oriente Médio"]
     temas_origem = ["Governança Global", "Segurança e Paz", "Direito Internacional", "Economia e Comércio"]
 
     idx_count = 0
-    for nome, (url, orgao, tipo_base) in FONTES.items():
+    for url_feed, orgao, tipo_base in FONTES:
         try:
-            feed = feedparser.parse(url)
-            for entry in feed.entries[:12]:
+            feed = feedparser.parse(url_feed)
+            for entry in feed.entries:
+                link_artigo = entry.get("link", "")
+                if not link_artigo or link_artigo in urls_vistas:
+                    continue  # Evita duplicatas exatas
+                
+                urls_vistas.add(link_artigo)
+
+                # Extração profunda do conteúdo completo (prioriza content:encoded)
                 raw_content = ""
                 if 'content' in entry and len(entry.content) > 0:
                     raw_content = entry.content[0].get('value', '')
                 if not raw_content or len(raw_content.strip()) < 50:
                     raw_content = entry.get("summary", "") or entry.get("description", "")
-                
+
                 soup = BeautifulSoup(raw_content, "html.parser")
-                resumo_limpo = soup.get_text()[:220].strip() + "..."
                 
+                # Gera resumo limpo para o card
+                resumo_limpo = soup.get_text().strip()
+                if len(resumo_limpo) > 220:
+                    resumo_limpo = resumo_limpo[:220] + "..."
+                if not resumo_limpo:
+                    resumo_limpo = "Consulte o texto completo e os desdobramentos oficiais diretamente no repositório institucional."
+
+                # Extração de imagem do feed ou do corpo HTML
                 imagem_url = FALLBACK_IMAGES[idx_count % len(FALLBACK_IMAGES)]
                 if 'media_content' in entry and len(entry.media_content) > 0:
                     imagem_url = entry.media_content[0].get('url', imagem_url)
@@ -234,15 +236,15 @@ def carregar_noticias():
 
                 itens.append({
                     "id": idx_count,
-                    "titulo": entry.title,
+                    "titulo": entry.get("title", "Sem Título"),
                     "resumo": resumo_limpo,
-                    "conteudo_completo": raw_content if len(raw_content) > 50 else f"<p>{resumo_limpo}</p><p>Conteúdo oficial recuperado diretamente do canal institucional.</p>",
+                    "conteudo_completo": raw_content if len(raw_content) > 50 else f"<p>{resumo_limpo}</p>",
                     "orgao": orgao,
                     "tipo": tipo_base,
                     "tema": temas_origem[idx_count % len(temas_origem)],
                     "regiao": regioes_lista[idx_count % len(regioes_lista)],
                     "imagem": imagem_url,
-                    "link": entry.link,
+                    "link": link_artigo,
                     "data": entry.get("published", "Data recente")
                 })
                 idx_count += 1
@@ -405,12 +407,12 @@ if len(noticias_filtradas) > 0:
                             <div style="font-size: 11px; color: #555555; margin-bottom: 6px; font-weight: 600;">🏷️ {item2['tema']} | 📍 {item2['regiao']}</div>
                             <div class="card-title">{item2['titulo']}</div>
                             <div class="card-excerpt">{item2['resumo']}</div>
+                        </div>
                     </div>
-                </div>
-            """, unsafe_allow_html=True)
-            if str_lit.button("📖 ABRIR NOTÍCIA COMPLETA", key=f"btn_{item2['id']}", use_container_width=True):
-                str_lit.query_params["article"] = str(item2['id'])
-                str_lit.rerun()
+                """, unsafe_allow_html=True)
+                if str_lit.button("📖 ABRIR NOTÍCIA COMPLETA", key=f"btn_{item2['id']}", use_container_width=True):
+                    str_lit.query_params["article"] = str(item2['id'])
+                    str_lit.rerun()
         else:
             with row_cols[1]:
                 str_lit.markdown("<div style='height: 480px;'></div>", unsafe_allow_html=True)
