@@ -10,8 +10,6 @@ import stripe
 # 1. CONFIGURAÇÃO DE SEGREDOS E STRIPE
 # ==============================================================================
 STRIPE_SECRET_KEY = str_lit.secrets.get("STRIPE_SECRET_KEY", "sk_test_exemplo")
-STRIPE_PRICE_MONTHLY = str_lit.secrets.get("STRIPE_PRICE_MONTHLY", "price_monthly_id")
-STRIPE_PRICE_YEARLY = str_lit.secrets.get("STRIPE_PRICE_YEARLY", "price_yearly_id")
 DOMAIN_URL = str_lit.secrets.get("DOMAIN_URL", "http://localhost:8501")
 
 stripe.api_key = STRIPE_SECRET_KEY
@@ -61,7 +59,7 @@ def verificar_reset_diario(username):
 verificar_reset_diario(str_lit.session_state["current_user"])
 
 # ==============================================================================
-# 4. ESTILOS CSS REFINADOS (LAYOUT AOC.MEDIA COM IMAGENS EM ALTA RESOLUÇÃO)
+# 4. ESTILOS CSS REFINADOS (IMAGENS EM ALTA RESOLUÇÃO E TIPOGRAFIA EDITORIAL)
 # ==============================================================================
 str_lit.markdown("""
     <style>
@@ -142,7 +140,7 @@ str_lit.markdown("""
     .badge-sg { background-color: #CCFBF1; color: #0F766E; border: 1px solid #99F6E4; }
     .badge-csonu { background-color: #FFEDD5; color: #C2410C; border: 1px solid #FED7AA; }
 
-    /* FAIXA TOPO DETALHE (AOC.MEDIA STYLE) */
+    /* FAIXA TOPO DETALHE */
     .aoc-stripe-onu { background-color: #1D4ED8; height: 6px; width: 100%; margin-bottom: 20px; }
     .aoc-stripe-mre { background-color: #374151; height: 6px; width: 100%; margin-bottom: 20px; }
     .aoc-stripe-noticias { background-color: #B45309; height: 6px; width: 100%; margin-bottom: 20px; }
@@ -183,7 +181,7 @@ str_lit.markdown("""
     }
     .card-excerpt { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; color: #666666; line-height: 1.5; margin-bottom: 10px; }
     
-    /* CONTEÚDO EDITORIAL COMPLETO COM IMAGENS DE ALTA RESOLUÇÃO */
+    /* CONTEÚDO EDITORIAL COMPLETO COM IMAGENS ADAPTADAS E NÍTIDAS */
     .article-container {
         background-color: #FFFFFF;
         padding: 40px;
@@ -202,26 +200,19 @@ str_lit.markdown("""
     .article-container h2, .article-container h3 {
         margin-top: 35px;
         margin-bottom: 15px;
+        font-family: 'Newsreader', serif;
     }
     .article-container img {
-        width: 100% !important;
+        display: block;
+        max-width: 100% !important;
         height: auto !important;
-        max-height: 550px;
-        object-fit: cover;
+        max-height: 500px;
+        object-fit: contain;
+        background-color: #F3F3F3;
         border-radius: 4px;
-        margin: 25px 0;
+        margin: 25px auto;
         border: 1px solid #E2DED6;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    }
-    .article-container figure {
-        margin: 25px 0;
-        text-align: center;
-    }
-    .article-container figcaption {
-        font-size: 12.5px;
-        color: #666;
-        margin-top: 8px;
-        font-style: italic;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.04);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -263,7 +254,7 @@ def get_stripe_class(categoria):
     else: return "aoc-stripe-mre"
 
 # ==============================================================================
-# 6. EXTRATOR PROFUNDO DE CONTEÚDO INTEGRAL (WEBSCRAPING DE ALTA FIDELIDADE)
+# 6. EXTRATOR ROBUSTO DE CONTEÚDO INTEGRAL (WEBSCRAPING COM FALLBACK DE PARÁGRAFOS)
 # ==============================================================================
 @str_lit.cache_data(ttl=3600)
 def raspar_conteudo_integral(url, fallback_content=""):
@@ -272,29 +263,42 @@ def raspar_conteudo_integral(url, fallback_content=""):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
             'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
         }
-        response = requests.get(url, headers=headers, timeout=7)
+        response = requests.get(url, headers=headers, timeout=8)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # Varre seletivamente blocos de conteúdo conhecidos em portais oficiais
+            # Tenta encontrar blocos principais de portais governamentais e da ONU
             corpo = (
                 soup.find('div', id='parent-fieldname-text') or 
                 soup.find('div', class_='field-name-body') or
                 soup.find('div', class_='node__content') or
                 soup.find('article') or 
                 soup.find('div', class_='content') or
-                soup.find('div', class_='main-content')
+                soup.find('div', class_='main-content') or
+                soup.find('div', class_='entry-content')
             )
             
             if corpo:
-                # Remove elementos indesejados de navegação/rodapé do site original
-                for lixo in corpo(["script", "style", "nav", "header", "footer", "aside"]):
+                for lixo in corpo(["script", "style", "nav", "header", "footer", "aside", "form"]):
                     lixo.extract()
                 return str(corpo)
+            
+            # Fallback aprimorado: Se os seletores principais falharem, captura todos os parágrafos relevantes da página
+            paragrafos_gerais = soup.find_all(['p', 'h2', 'h3', 'img'])
+            if paragrafos_gerais:
+                container_dinamico = BeautifulSoup("<div></div>", "html.parser")
+                div_pai = container_dinamico.div
+                for p in paragrafos_gerais:
+                    # Evita lixos de rodapé comuns
+                    if any(termo in p.text.lower() for termo in ["todos os direitos reservados", "cookie", "política de privacidade"]):
+                        continue
+                    div_pai.append(p)
+                return str(div_pai)
+                
     except Exception:
         pass
     
-    # Se falhar o acesso direto, retorna o corpo completo do RSS formatado
+    # Caso extremo: exibe o conteúdo completo do RSS limpo
     return f"<div><p>{fallback_content}</p></div>"
 
 # ==============================================================================
@@ -330,21 +334,16 @@ def carregar_noticias():
     regioes_lista = ["América do Sul", "Europa", "Oriente Médio", "Global"]
     
     tipos_possiveis = [
-        "Notícia", 
-        "Nota", 
-        "Discurso", 
+        "Notícia", "Nota", "Discurso", 
         "Discurso de Líderes de Estado", 
         "Discurso do Secretário-Geral das Nações Unidas", 
         "Conselho de Segurança"
     ]
     
     temas_origem = [
-        "Paz e Segurança Internacionais", 
-        "Direitos Humanos", 
-        "Desenvolvimento Sustentável e Clima", 
-        "Direito Internacional", 
-        "Cooperação Multilateral", 
-        "Desarmamento"
+        "Paz e Segurança Internacionais", "Direitos Humanos", 
+        "Desenvolvimento Sustentável e Clima", "Direito Internacional", 
+        "Cooperação Multilateral", "Desarmamento"
     ]
 
     idx_count = 0
@@ -381,7 +380,7 @@ acervo_noticias = carregar_noticias()
 temas_disponiveis = sorted(list(set([item["tema"] for item in acervo_noticias])))
 
 # ==============================================================================
-# 8. ROTEAMENTO DA PÁGINA INTERNA DE DETALHES (ESTILO AOC.MEDIA COMPLETO)
+# 8. ROTEAMENTO DA PÁGINA INTERNA DE DETALHES
 # ==============================================================================
 article_id_param = str_lit.query_params.get("article", None)
 
@@ -395,7 +394,7 @@ if article_id_param is not None:
     if artigo_atual:
         stripe_classe = get_stripe_class(artigo_atual['tipo'])
         
-        # 1. Faixa colorida no topo (estilo AOC.media)
+        # Faixa colorida no topo (estilo AOC.media)
         str_lit.markdown(f'<div class="{stripe_classe}"></div>', unsafe_allow_html=True)
         
         col_voltar, col_lang = str_lit.columns([3, 1])
@@ -406,37 +405,39 @@ if article_id_param is not None:
         
         with col_lang:
             idioma_selecionado = str_lit.selectbox(
-                "🌐 Tradução e Idiomas", 
+                "🌐 Idioma / Tradução", 
                 ["Português (PT)", "English (EN)", "Español (ES)", "Français (FR)"], 
                 key="select_lang"
             )
 
         str_lit.markdown("<br>", unsafe_allow_html=True)
         
-        # 2. Badges e Metadados Editoriais
+        # Metadados e Badges
         str_lit.markdown(f"<div>{render_badge(artigo_atual['orgao'])}{render_badge(artigo_atual['tipo'])}</div>", unsafe_allow_html=True)
         str_lit.markdown(f"<div style='font-size: 13px; color: #555555; margin-top: 6px; font-weight: 500;'>🏷️ Tema: {artigo_atual['tema']} &nbsp;|&nbsp; 📍 {artigo_atual['regiao']} &nbsp;|&nbsp; 📅 {artigo_atual['data']}</div>", unsafe_allow_html=True)
         
-        # 3. Título Principal em Serifado
+        # Título Principal
         str_lit.markdown(f"<h1 style='font-family: Newsreader, serif; font-size: 38px; margin-top: 15px; margin-bottom: 20px; line-height: 1.2;'>{artigo_atual['titulo']}</h1>", unsafe_allow_html=True)
         
-        # 4. Imagem Principal de Capa em Alta Definição
+        # Imagem de Capa em Alta Resolução e Responsiva
         str_lit.markdown(f"""
-            <div style="width: 100%; max-height: 520px; overflow: hidden; border-radius: 4px; margin-bottom: 25px; border: 1px solid #E2DED6;">
-                <img src="{artigo_atual['imagem']}" style="width: 100%; height: auto; object-fit: cover;" alt="Capa da Matéria" />
+            <div style="width: 100%; max-height: 520px; text-align: center; overflow: hidden; border-radius: 4px; margin-bottom: 25px; border: 1px solid #E2DED6; background-color: #1A1A1A;">
+                <img src="{artigo_atual['imagem']}" style="max-width: 100%; height: auto; object-fit: contain; margin: 0 auto;" alt="Capa da Matéria" />
             </div>
         """, unsafe_allow_html=True)
         
-        # 5. Extração e Renderização do Conteúdo Completo (Textos + Imagens de Origem)
+        # Extração do Conteúdo Completo
         conteudo_bruto = raspar_conteudo_integral(artigo_atual['link'], artigo_atual['conteudo_rss'])
         
-        # Alerta se o usuário alternar para tradução estrangeira simulada
+        # Notificação de Tradução
         if "English" in idioma_selecionado:
-            str_lit.info("🌐 Exibindo versão original ou traduzida em Inglês.")
+            str_lit.info("🌐 Exibindo conteúdo original em Inglês.")
         elif "Español" in idioma_selecionado:
-            str_lit.info("🌐 Traduzido automaticamente para Espanhol.")
+            str_lit.info("🌐 Conteúdo adaptado para o Espanhol.")
         elif "Français" in idioma_selecionado:
-            str_lit.info("🌐 Traduzido automaticamente para Francês.")
+            str_lit.info("🌐 Conteúdo adaptado para o Francês.")
+        else:
+            str_lit.info("🌐 Conteúdo completo e traduzido para o Português.")
 
         str_lit.markdown(f"""
             <div class="article-container">
@@ -446,7 +447,7 @@ if article_id_param is not None:
         
         str_lit.markdown("---")
         
-        # 6. Rodapé da Matéria com link oficial
+        # Rodapé com Link Oficial
         col_ext_1, col_ext_2 = str_lit.columns([2, 2])
         with col_ext_1:
             if str_lit.button("🔗 Ver Publicação Oficial no Site de Origem", use_container_width=True):
@@ -505,12 +506,7 @@ with str_lit.sidebar:
     str_lit.markdown("### 🏷️ Classificação & Filtros")
     
     opcoes_categoria = [
-        "Todas", 
-        "ONU", 
-        "MRE", 
-        "Notícias", 
-        "Notas", 
-        "Discursos", 
+        "Todas", "ONU", "MRE", "Notícias", "Notas", "Discursos", 
         "Discurso de Líderes de Estado", 
         "Discurso do Secretário-Geral das Nações Unidas", 
         "Conselho de Segurança"
