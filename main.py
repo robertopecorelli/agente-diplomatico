@@ -85,7 +85,6 @@ st.markdown("""
         border-right: 1px solid #D19A7D;
     }
 
-    /* Ajustes para telas mobile */
     @media (max-width: 768px) {
         .portal-title {
             font-size: 22px !important;
@@ -96,7 +95,6 @@ st.markdown("""
         }
     }
 
-    /* Botões Compactos do Menu Superior */
     .top-nav-btn button {
         font-family: 'Inter', sans-serif !important;
         font-size: 11px !important;
@@ -109,27 +107,27 @@ st.markdown("""
         margin-top: 2px !important;
         text-transform: uppercase;
         width: 100%;
+        color: #F0E6D2 !important;
     }
 
     .top-nav-btn-primary button {
         background-color: #B76D4D !important;
-        color: #FFFFFF !important;
         border: 1px solid #B76D4D !important;
     }
     .top-nav-btn-primary button:hover {
         background-color: #9E583A !important;
+        color: #F0E6D2 !important;
     }
 
     .top-nav-btn-secondary button {
-        background-color: transparent !important;
-        color: #262626 !important;
+        background-color: #4A4A4A !important;
         border: 1px solid #D19A7D !important;
     }
     .top-nav-btn-secondary button:hover {
-        background-color: rgba(209, 154, 125, 0.2) !important;
+        background-color: #383838 !important;
+        color: #F0E6D2 !important;
     }
 
-    /* Cards de Notícias da Grade */
     .news-card {
         background: #FFFFFF;
         border-radius: 6px;
@@ -173,7 +171,6 @@ st.markdown("""
     }
     .card-excerpt { font-family: 'Inter', sans-serif; font-size: 13px; color: #4A4A4A; line-height: 1.5; margin-bottom: 10px; }
 
-    /* Modal / Form de Cadastro */
     .register-header-title { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: #262626; text-align: center; margin-bottom: 4px; }
     .register-header-subtitle { font-family: 'Inter', sans-serif; font-size: 13px; color: #736B63; text-align: center; margin-bottom: 20px; }
     .field-label { font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 800; color: #262626; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
@@ -237,17 +234,20 @@ def carregar_noticias():
 acervo_noticias = carregar_noticias()
 
 # ==============================================================================
-# 6. MENU SUPERIOR RESPONSIVO (TÍTULO COM DUAS CORES)
+# 6. MENU SUPERIOR RESPONSIVO COM O SUBTÍTULO
 # ==============================================================================
 user_cur = st.session_state["current_user"]
 user_data = st.session_state["users_db"].get(user_cur, {"plan": "free", "access_count": 0})
 
-col_title, col_top_actions = st.columns([2.1, 1.9])
+col_title, col_top_actions = st.columns([2.2, 1.8])
 
 with col_title:
     st.markdown("""
-        <div class="portal-title" style="font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 800; letter-spacing: 0.5px; margin: 0; padding-top: 4px;">
+        <div class="portal-title" style="font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 800; letter-spacing: 0.5px; margin: 0; padding-top: 2px;">
             <span style="color: #1F2937;">Repositório</span> <span style="color: #B76D4D;">Diplomático</span>
+        </div>
+        <div style="font-family: 'Inter', sans-serif; font-size: 11.5px; color: #736B63; text-transform: lowercase; letter-spacing: 0.5px; margin-top: 2px; margin-bottom: 4px;">
+            a sua dose diária de informação
         </div>
     """, unsafe_allow_html=True)
 
@@ -279,7 +279,7 @@ st.markdown("---")
 if st.session_state["show_register_modal"]:
     st.markdown("""
         <div class="register-header-title">Criar Conta</div>
-        <div class="register-header-subtitle">Sua dose diária de inteligência para a Carreira Diplomática.</div>
+        <div class="register-header-subtitle">a sua dose diária de informação.</div>
     """, unsafe_allow_html=True)
 
     with st.form("form_criar_conta"):
@@ -327,7 +327,7 @@ if st.session_state["show_register_modal"]:
 # ==============================================================================
 with st.sidebar:
     st.markdown("### 🏛️ REPOSITÓRIO")
-    st.caption("Inteligência para o CACD")
+    st.caption("a sua dose diária de informação")
     st.markdown("---")
 
     st.markdown("### 🌍 Filtros do Acervo")
@@ -529,13 +529,11 @@ if len(noticias_filtradas) > 0:
     </html>
     """
     
-    # Altura dinâmica ajustada para acomodar celulares (ajusta de 400px para 300px no mobile)
     components.html(carousel_html_code, height=395)
     
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 📰 Demais Documentos & Notícias do Acervo")
 
-    # Grade inteligente: no celular o Streamlit empilha automaticamente as colunas
     grid_cols = st.columns(2)
     for idx, item in enumerate(noticias_filtradas):
         with grid_cols[idx % 2]:
