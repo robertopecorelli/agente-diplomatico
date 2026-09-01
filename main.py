@@ -254,7 +254,7 @@ def get_stripe_class(categoria):
     else: return "aoc-stripe-mre"
 
 # ==============================================================================
-# 6. EXTRATOR INTELIGENTE E DETECTOR DE IDIOMAS NATIVOS DO SITE DE ORIGEM
+# 6. EXTRATOR INTELIGENTE COM FALLBACK AUTOMÁTICO DE RSS E IDIOMAS
 # ==============================================================================
 @str_lit.cache_data(ttl=3600)
 def raspar_conteudo_e_idiomas(url, fallback_rss=""):
@@ -280,13 +280,13 @@ def raspar_conteudo_e_idiomas(url, fallback_rss=""):
                 if lang_code and lang_href:
                     idiomas_disponiveis[lang_code.upper()] = lang_href
 
-            for a_tag in soup.select('ul.languages li a, .language-selector a, .region-language a, .lang-select a, .$.)'):
+            for a_tag in soup.select('ul.languages li a, .language-selector a, .region-language a, .lang-select a'):
                 texto_link = a_tag.get_text(strip=True).upper()
                 href_link = a_tag.get('href')
                 if href_link and len(texto_link) <= 5:
                     idiomas_disponiveis[texto_link] = href_link
 
-            # 2. Seletores específicos para ONU News, Gov.br e portais institucionais
+            # 2. Seletores robustos específicos para ONU News, Gov.br e portais institucionais
             corpo = (
                 soup.find('div', class_='field--name-body') or
                 soup.find('div', id='parent-fieldname-text') or 
@@ -303,7 +303,7 @@ def raspar_conteudo_e_idiomas(url, fallback_rss=""):
                     lixo.extract()
                 conteudo_html = str(corpo)
 
-        # 3. Mapeamento matemático de idiomas caso o site bloqueie seletores diretos (ex: ONU /en/ para /pt/, /es/, /fr/)
+        # 3. Mapeamento matemático de idiomas caso o site bloqueie seletores (ex: ONU /en/ para /pt/, /es/, /fr/)
         if not idiomas_disponiveis and ("news.un.org" in url or "gov.br" in url):
             if "/en/" in url:
                 idiomas_disponiveis = {
@@ -320,10 +320,10 @@ def raspar_conteudo_e_idiomas(url, fallback_rss=""):
                     "PT": url
                 }
 
-        # 4. Fallback de Segurança Automático se a raspagem falhar ou vier vazia
+        # 4. Fallback de Segurança Automático: se o scraper vier vazio, injeta o RSS completo e formatado
         if not conteudo_html or len(conteudo_html.strip()) < 50:
             if fallback_rss:
-                conteudo_html = f"<div class='fallback-content'><p>{fallback_rss}</p><em>Nota: Conteúdo carregado via feed estruturado de segurança devido a restrições do servidor de origem.</em></div>"
+                conteudo_html = f"<div class='fallback-content'><p>{fallback_rss}</p><br><p style='font-size: 13px; color: #666;'><em>Conteúdo carregado via feed estruturado de segurança devido a restrições de exibição do servidor de origem.</em></p></div>"
             else:
                 conteudo_html = "<p>Não foi possível carregar o texto completo diretamente. Utilize o link oficial abaixo para leitura integral no portal de origem.</p>"
 
@@ -382,6 +382,8 @@ def carregar_noticias():
         feed = feedparser.parse(url)
         for entry in feed.entries[:10]:
             resumo = re.sub('<[^<]+?>', '', entry.get("summary", entry.get("description", "")))[:250] + "..."
+            
+            # Extrai o conteúdo completo do feed RSS para garantir fallback robusto
             conteudo_rss = entry.get("content", [{"value": entry.get("summary", entry.get("description", ""))}] )[0]["value"]
             
             imagem_url = extrair_url_imagem(entry, idx_count)
@@ -428,7 +430,7 @@ if article_id_param is not None:
         # Faixa colorida no topo (estilo AOC.media)
         str_lit.markdown(f'<div class="{stripe_classe}"></div>', unsafe_allow_html=True)
         
-        # Executa o Web Scraper Robusto com Fallback de RSS embutido
+        # Executa o Web Scraper Robusto passando o conteúdo completo do RSS como fallback
         conteudo_bruto, idiomas_origem = raspar_conteudo_e_idiomas(artigo_atual['link'], artigo_atual['conteudo_rss'])
         
         col_voltar, col_lang = str_lit.columns([3, 1])
@@ -465,7 +467,7 @@ if article_id_param is not None:
             </div>
         """, unsafe_allow_html=True)
         
-        # Exibição do Texto Completo Raspado com Fallback e Formatação Original
+        # Exibição do Texto Completo Raspado com Fallback Garantido
         str_lit.markdown(f"""
             <div class="article-container">
                 {conteudo_bruto}
