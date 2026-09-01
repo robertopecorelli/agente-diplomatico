@@ -46,7 +46,7 @@ def verificar_reset_diario(username):
 verificar_reset_diario(str_lit.session_state["current_user"])
 
 # ==============================================================================
-# 4. ESTILOS CSS (LAYOUT EDITORIAL, IMAGENS E LINK DISCRETO)
+# 4. ESTILOS CSS (DESIGN EDITORIAL, IMAGENS E GRÁFICOS ADAPTADOS)
 # ==============================================================================
 str_lit.markdown("""
     <style>
@@ -65,7 +65,7 @@ str_lit.markdown("""
     }
     .article-container {
         background-color: #FFFFFF;
-        padding: 40px;
+        padding: 45px;
         border-radius: 4px;
         border: 1px solid #E2DED6;
         margin-bottom: 20px;
@@ -78,16 +78,23 @@ str_lit.markdown("""
         line-height: 1.85;
         margin-bottom: 22px;
     }
-    .article-container img {
+    .article-container img, .article-container figure {
         display: block;
         max-width: 100% !important;
         height: auto !important;
-        max-height: 550px;
-        object-fit: contain;
-        background-color: #F9F9F9;
+        margin: 30px auto;
         border-radius: 4px;
-        margin: 25px auto;
         border: 1px solid #E2DED6;
+        background-color: #F9F9F9;
+        object-fit: contain;
+    }
+    .article-container figcaption {
+        font-size: 13px;
+        color: #666666;
+        text-align: center;
+        margin-top: -15px;
+        margin-bottom: 25px;
+        font-style: italic;
     }
     .badge {
         display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
@@ -97,7 +104,6 @@ str_lit.markdown("""
     .badge-onu { background-color: #E8EEF5; color: #1D4ED8; border: 1px solid #BFDBFE; }
     .badge-mre { background-color: #F3F4F6; color: #374151; border: 1px solid #D1D5DB; }
     
-    /* Link de rodapé discreto */
     .footer-original-link {
         font-size: 13px;
         color: #666666;
@@ -122,14 +128,14 @@ def render_badge(categoria):
     return '<span class="badge badge-mre"><i class="fa-solid fa-landmark"></i> MRE</span>'
 
 # ==============================================================================
-# 5. EXTRATOR ROBUSTO DE CONTEÚDO INTEGRAL E IDIOMAS NATIVOS
+# 5. EXTRATOR AVANÇADO DE CONTEÚDO INTEGRAL E IDIOMAS NATIVOS
 # ==============================================================================
 @str_lit.cache_data(ttl=3600)
 def raspar_conteudo_completo(url):
     idiomas_disponiveis = {}
     conteudo_html = ""
     
-    # Mapeamento dinâmico para portais multilíngues (ex: ONU News)
+    # Mapeamento padrão de URLs para idiomas na ONU News caso o site use troca de slug
     if "news.un.org" in url:
         base_un = re.sub(r'news\.un\.org/[a-z]{2}/', 'news.un.org/{lang}/', url)
         idiomas_disponiveis = {
@@ -147,19 +153,19 @@ def raspar_conteudo_completo(url):
             'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
         }
         
-        resposta = requests.get(url, headers=headers, timeout=10)
+        resposta = requests.get(url, headers=headers, timeout=12)
         
         if resposta.status_code == 200:
             soup = BeautifulSoup(resposta.text, 'html.parser')
             
-            # Captura links de idiomas alternativos reais do cabeçalho da página se houverem
+            # Captura os links multilíngues nativos da página de origem (hreflang)
             for lang_link in soup.find_all('link', hreflang=True):
                 lang_code = lang_link.get('hreflang').upper()
                 lang_href = lang_link.get('href')
-                if lang_code and lang_code != "X-DEFAULT":
+                if lang_code and lang_code != "X-DEFAULT" and len(lang_code) <= 5:
                     idiomas_disponiveis[lang_code] = lang_href
 
-            # Varredura focada em encontrar o corpo do texto de notícias institucionais e governamentais
+            # Captura os seletores exatos das matérias completas (ONU News, Gov.br/MRE)
             corpo = (
                 soup.find('div', class_='story-content') or 
                 soup.find('div', id='content-core') or      
@@ -170,19 +176,21 @@ def raspar_conteudo_completo(url):
             )
             
             if corpo:
-                # Remove elementos irrelevantes (menus, rodapés, scripts, formulários)
-                for lixo in corpo(["script", "style", "nav", "footer", "form", "aside", "header", ".share-buttons", ".social-media"]):
+                # Remove elementos de interface poluidores (menus, rodapés, botões de partilha)
+                for lixo in corpo(["script", "style", "nav", "footer", "form", "aside", "header", ".share-buttons", ".social-media", ".field-name-taxonomy-topics"]):
                     lixo.extract()
                 conteudo_html = str(corpo)
             else:
-                # Se não achar um bloco central único, junta todos os parágrafos relevantes da página
-                paragrafos = soup.find_all(['p', 'h2', 'h3'])
-                elementos_validos = []
-                for p in paragrafos:
-                    texto = p.get_text(strip=True).lower()
-                    if not any(termo in texto for termo in ["direitos reservados", "política de privacidade", "cookies", "newsletter"]):
-                        elementos_validos.append(str(p))
-                conteudo_html = "".join(elementos_validos)
+                # Extração ampla por blocos de parágrafos e imagens se o container principal variar
+                elementos = soup.find_all(['p', 'h2', 'h3', 'img', 'figure', 'blockquote'])
+                container_dinamico = BeautifulSoup("<div></div>", "html.parser")
+                div_pai = container_dinamico.div
+                for el in elementos:
+                    texto_el = el.get_text(strip=True).lower()
+                    if any(termo in texto_el for termo in ["todos os direitos reservados", "política de privacidade", "cookies", "newsletter"]):
+                        continue
+                    div_pai.append(el)
+                conteudo_html = str(div_pai)
                 
     except Exception as e:
         print(f"Erro ao raspar {url}: {e}")
@@ -206,7 +214,6 @@ def carregar_noticias():
         for entry in feed.entries[:10]:
             resumo = re.sub('<[^<]+?>', '', entry.get("summary", entry.get("description", "")))[:250] + "..."
             
-            # Conteúdo embutido do RSS usado como alternativa se a página externa falhar
             conteudo_rss_html = ""
             if 'content' in entry:
                 conteudo_rss_html = entry.content[0].value
@@ -245,13 +252,13 @@ if article_id_param is not None:
         artigo_atual = None
 
     if artigo_atual:
-        # Extrai o conteúdo completo e os idiomas do site de origem
+        # Extrai o conteúdo completo do site de origem (incluindo imagens, gráficos e formatação)
         conteudo_extraido, idiomas_origem = raspar_conteudo_completo(artigo_atual['link'])
         
-        # Se por acaso a extração falhar, recorre ao HTML do RSS para não deixar em branco
+        # Garante fallback seguro se a conexão falhar momentaneamente
         conteudo_final = conteudo_extraido if len(conteudo_extraido) > 150 else f"<div>{artigo_atual['conteudo_rss']}</div>"
 
-        # Barra superior de Voltar e Seletor de Idiomas Nativos
+        # Barra superior com botão Voltar e Seletor de Idiomas Nativos do site
         col_voltar, col_lang = str_lit.columns([3, 1])
         with col_voltar:
             if str_lit.button("← Voltar ao Repositório"):
@@ -274,21 +281,21 @@ if article_id_param is not None:
         str_lit.markdown(f"<div>{render_badge(artigo_atual['orgao'])}</div>", unsafe_allow_html=True)
         str_lit.markdown(f"<h1 style='font-family: Newsreader, serif; font-size: 38px; margin-top: 10px; margin-bottom: 25px;'>{artigo_atual['titulo']}</h1>", unsafe_allow_html=True)
         
-        # Imagem de Capa
+        # Imagem de Capa Principal
         str_lit.markdown(f"""
             <div style="width: 100%; text-align: center; overflow: hidden; border-radius: 4px; margin-bottom: 30px; border: 1px solid #E2DED6; background-color: #1A1A1A;">
                 <img src="{artigo_atual['imagem']}" style="max-width: 100%; max-height: 550px; object-fit: contain; margin: 0 auto;" alt="Capa" />
             </div>
         """, unsafe_allow_html=True)
         
-        # Texto Completo Raspado do Site de Origem
+        # Corpo Completo com todas as fotos, imagens e gráficos da origem
         str_lit.markdown(f"""
             <div class="article-container">
                 {conteudo_final}
             </div>
         """, unsafe_allow_html=True)
         
-        # Link discreto no rodapé para a página de origem
+        # Link discreto no rodapé para o site de origem
         str_lit.markdown(f"""
             <div class="footer-original-link">
                 Publicação original disponível em <a href="{artigo_atual['link']}" target="_blank">{artigo_atual['orgao']}</a>
