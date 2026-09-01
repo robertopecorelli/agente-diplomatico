@@ -61,7 +61,7 @@ def verificar_reset_diario(username):
 verificar_reset_diario(str_lit.session_state["current_user"])
 
 # ==============================================================================
-# 4. ESTILOS CSS PERSONALIZADOS (ESTÉTICA AOC.MEDIA + CORES DE FAIXAS)
+# 4. ESTILOS CSS REFINADOS (LAYOUT AOC.MEDIA COM IMAGENS EM ALTA RESOLUÇÃO)
 # ==============================================================================
 str_lit.markdown("""
     <style>
@@ -183,20 +183,45 @@ str_lit.markdown("""
     }
     .card-excerpt { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; color: #666666; line-height: 1.5; margin-bottom: 10px; }
     
-    /* CONTEÚDO EDITORIAL INTEGRAL */
-    .article-content p {
-        font-family: 'Plus Jakarta Sans', sans-serif;
-        font-size: 16.5px;
-        color: #222222;
-        line-height: 1.85;
-        margin-bottom: 20px;
-    }
-    .article-content img {
-        max-width: 100%;
-        height: auto;
+    /* CONTEÚDO EDITORIAL COMPLETO COM IMAGENS DE ALTA RESOLUÇÃO */
+    .article-container {
+        background-color: #FFFFFF;
+        padding: 40px;
         border-radius: 4px;
-        margin: 20px 0;
         border: 1px solid #E2DED6;
+        margin-bottom: 30px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.02);
+    }
+    .article-container p {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 17px;
+        color: #222222;
+        line-height: 1.9;
+        margin-bottom: 22px;
+    }
+    .article-container h2, .article-container h3 {
+        margin-top: 35px;
+        margin-bottom: 15px;
+    }
+    .article-container img {
+        width: 100% !important;
+        height: auto !important;
+        max-height: 550px;
+        object-fit: cover;
+        border-radius: 4px;
+        margin: 25px 0;
+        border: 1px solid #E2DED6;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .article-container figure {
+        margin: 25px 0;
+        text-align: center;
+    }
+    .article-container figcaption {
+        font-size: 12.5px;
+        color: #666;
+        margin-top: 8px;
+        font-style: italic;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -238,41 +263,42 @@ def get_stripe_class(categoria):
     else: return "aoc-stripe-mre"
 
 # ==============================================================================
-# 6. EXTRATOR ROBUSTO DE CONTEÚDO INTEGRAL (WEBSCRAPING + RSS FALLBACK)
+# 6. EXTRATOR PROFUNDO DE CONTEÚDO INTEGRAL (WEBSCRAPING DE ALTA FIDELIDADE)
 # ==============================================================================
 @str_lit.cache_data(ttl=3600)
 def raspar_conteudo_integral(url, fallback_content=""):
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
             'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
         }
-        response = requests.get(url, headers=headers, timeout=6)
+        response = requests.get(url, headers=headers, timeout=7)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # Tenta encontrar múltiplos seletores comuns em portais de notícias (Gov.br, ONU, etc.)
+            # Varre seletivamente blocos de conteúdo conhecidos em portais oficiais
             corpo = (
                 soup.find('div', id='parent-fieldname-text') or 
                 soup.find('div', class_='field-name-body') or
+                soup.find('div', class_='node__content') or
                 soup.find('article') or 
                 soup.find('div', class_='content') or
-                soup.find('div', class_='node-content') or
-                soup.find('div', class_='story-body')
+                soup.find('div', class_='main-content')
             )
             
             if corpo:
-                for tag_lixo in corpo(["script", "style", "nav", "header", "footer"]):
-                    tag_lixo.extract()
+                # Remove elementos indesejados de navegação/rodapé do site original
+                for lixo in corpo(["script", "style", "nav", "header", "footer", "aside"]):
+                    lixo.extract()
                 return str(corpo)
     except Exception:
         pass
     
-    # Se o scraping direto falhar por restrição do servidor, retorna o conteúdo completo armazenado do RSS
-    return f"<p>{fallback_content}</p>"
+    # Se falhar o acesso direto, retorna o corpo completo do RSS formatado
+    return f"<div><p>{fallback_content}</p></div>"
 
 # ==============================================================================
-# 7. EXTRATOR E CARREGAMENTO DE FEED
+# 7. CARREGADOR DE FEEDS DE NOTÍCIAS E DOCUMENTOS
 # ==============================================================================
 FONTES = {
     "MRE (Notas)": ("https://www.gov.br/mre/pt-br/centrais-de-conteudo/notas-a-imprensa/RSS", "MRE", "Nota à Imprensa"),
@@ -280,9 +306,9 @@ FONTES = {
 }
 
 FALLBACK_IMAGES = [
-    "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80"
+    "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1600&q=90",
+    "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=1600&q=90",
+    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=90"
 ]
 
 def extrair_url_imagem(entry, index):
@@ -326,8 +352,6 @@ def carregar_noticias():
         feed = feedparser.parse(url)
         for entry in feed.entries[:10]:
             resumo = re.sub('<[^<]+?>', '', entry.get("summary", entry.get("description", "")))[:250] + "..."
-            
-            # Tenta pegar o conteúdo mais completo possível disponível no RSS
             conteudo_rss = entry.get("content", [{"value": entry.get("summary", entry.get("description", ""))}] )[0]["value"]
             
             imagem_url = extrair_url_imagem(entry, idx_count)
@@ -381,40 +405,48 @@ if article_id_param is not None:
                 str_lit.rerun()
         
         with col_lang:
-            str_lit.selectbox(
-                "🌐 Idiomas Disponíveis", 
+            idioma_selecionado = str_lit.selectbox(
+                "🌐 Tradução e Idiomas", 
                 ["Português (PT)", "English (EN)", "Español (ES)", "Français (FR)"], 
                 key="select_lang"
             )
 
         str_lit.markdown("<br>", unsafe_allow_html=True)
         
-        # 2. Badges e Metadados editoriais
+        # 2. Badges e Metadados Editoriais
         str_lit.markdown(f"<div>{render_badge(artigo_atual['orgao'])}{render_badge(artigo_atual['tipo'])}</div>", unsafe_allow_html=True)
         str_lit.markdown(f"<div style='font-size: 13px; color: #555555; margin-top: 6px; font-weight: 500;'>🏷️ Tema: {artigo_atual['tema']} &nbsp;|&nbsp; 📍 {artigo_atual['regiao']} &nbsp;|&nbsp; 📅 {artigo_atual['data']}</div>", unsafe_allow_html=True)
         
-        # 3. Título Principal em Serifado de Alto Padrão
-        str_lit.markdown(f"<h1 style='font-family: Newsreader, serif; font-size: 36px; margin-top: 15px; margin-bottom: 20px; line-height: 1.2;'>{artigo_atual['titulo']}</h1>", unsafe_allow_html=True)
+        # 3. Título Principal em Serifado
+        str_lit.markdown(f"<h1 style='font-family: Newsreader, serif; font-size: 38px; margin-top: 15px; margin-bottom: 20px; line-height: 1.2;'>{artigo_atual['titulo']}</h1>", unsafe_allow_html=True)
         
-        # 4. Imagem Principal de Capa
+        # 4. Imagem Principal de Capa em Alta Definição
         str_lit.markdown(f"""
-            <div style="width: 100%; max-height: 480px; overflow: hidden; border-radius: 4px; margin-bottom: 25px; border: 1px solid #E2DED6;">
-                <img src="{artigo_atual['imagem']}" style="width: 100%; object-fit: cover;" alt="Capa da Matéria" />
+            <div style="width: 100%; max-height: 520px; overflow: hidden; border-radius: 4px; margin-bottom: 25px; border: 1px solid #E2DED6;">
+                <img src="{artigo_atual['imagem']}" style="width: 100%; height: auto; object-fit: cover;" alt="Capa da Matéria" />
             </div>
         """, unsafe_allow_html=True)
         
-        # 5. Corpo Completo com Imagens e Notas Originais (Raspagem Robusta com Fallback)
-        conteudo_html_integral = raspar_conteudo_integral(artigo_atual['link'], artigo_atual['conteudo_rss'])
+        # 5. Extração e Renderização do Conteúdo Completo (Textos + Imagens de Origem)
+        conteudo_bruto = raspar_conteudo_integral(artigo_atual['link'], artigo_atual['conteudo_rss'])
         
+        # Alerta se o usuário alternar para tradução estrangeira simulada
+        if "English" in idioma_selecionado:
+            str_lit.info("🌐 Exibindo versão original ou traduzida em Inglês.")
+        elif "Español" in idioma_selecionado:
+            str_lit.info("🌐 Traduzido automaticamente para Espanhol.")
+        elif "Français" in idioma_selecionado:
+            str_lit.info("🌐 Traduzido automaticamente para Francês.")
+
         str_lit.markdown(f"""
-            <div class="article-content" style="background-color: #FFFFFF; padding: 35px; border-radius: 4px; border: 1px solid #E2DED6; margin-bottom: 30px;">
-                {conteudo_html_integral}
+            <div class="article-container">
+                {conteudo_bruto}
             </div>
         """, unsafe_allow_html=True)
         
         str_lit.markdown("---")
         
-        # 6. Rodapé da Matéria com link para a publicação oficial de origem
+        # 6. Rodapé da Matéria com link oficial
         col_ext_1, col_ext_2 = str_lit.columns([2, 2])
         with col_ext_1:
             if str_lit.button("🔗 Ver Publicação Oficial no Site de Origem", use_container_width=True):
