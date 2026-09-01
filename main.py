@@ -5,16 +5,14 @@ import resend
 
 resend.api_key = os.getenv("RESEND_API_KEY")
 
-# Fontes separadas para MRE e ONU
+# Fontes ampliadas: incluindo canais específicos de Discursos e Notas Oficiais
 FONTES = {
-    "MRE (Itamaraty)": "https://www.gov.br/mre/pt-br/centrais-de-conteudo/noticias/RSS",
-    "ONU (United Nations - News)": "https://news.un.org/feed/subscribe/en/news/all/rss.xml"
+    "MRE (Itamaraty - Notícias e Notas)": "https://www.gov.br/mre/pt-br/centrais-de-conteudo/noticias/RSS",
+    "MRE (Itamaraty - Discursos)": "https://www.gov.br/mre/pt-br/centrais-de-conteudo/discursos/RSS",
+    "ONU (United Nations - Press/Discursos)": "https://news.un.org/feed/subscribe/en/news/all/rss.xml"
 }
 
 def validar_idiomas_e_resumos(link_base, resumo_original):
-    """
-    Mapeia os links oficiais e tenta capturar os resumos equivalentes nas outras línguas.
-    """
     idiomas = ["pt", "en", "es", "fr"]
     dados_idiomas = {}
     
@@ -40,7 +38,6 @@ def validar_idiomas_e_resumos(link_base, resumo_original):
         except requests.RequestException:
             pass
             
-    # Garante que pelo menos o link original conste
     if not dados_idiomas:
         dados_idiomas[idioma_atual] = {"link": link_base, "resumo": resumo_original}
         
@@ -53,7 +50,8 @@ def executar_varredura():
         feed = feedparser.parse(url_rss)
         itens_fonte = []
         
-        for entry in feed.entries[:3]: # Pega as 3 principais de cada fonte
+        # Pega até 3 itens de cada categoria
+        for entry in feed.entries[:3]: 
             resumo = entry.get("summary", "Resumo não disponível.")
             versoes = validar_idiomas_e_resumos(entry.link, resumo)
             
@@ -170,8 +168,8 @@ def montar_html_minimalista(relatorio):
     </head>
     <body>
         <div class="container">
-            <h1>Boletim Geopolítico Diário</h1>
-            <div class="subtitle">Monitoramento Oficial • MRE & ONU</div>
+            <h1>Boletim Diplomático Diário</h1>
+            <div class="subtitle">Monitoramento de Notas, Comunicados & Discursos</div>
     """
 
     for fonte, itens in relatorio.items():
@@ -214,18 +212,18 @@ def enviar_email(corpo_html):
     params = {
         "from": "Agente Diplomático <onboarding@resend.dev>",
         "to": ["robertobastos.arq@gmail.com"],
-        "subject": "Boletim Diplomático Diário — MRE & ONU",
+        "subject": "Boletim Diplomático Diário — Notas & Discursos",
         "html": corpo_html,
     }
 
     try:
         resend.Emails.send(params)
-        print("E-mail limpo e estruturado enviado com sucesso!")
+        print("E-mail com discursos e notas enviado com sucesso!")
     except Exception as e:
         print(f"Erro ao enviar e-mail: {e}")
 
 if __name__ == "__main__":
-    print("Executando varredura separada (MRE e ONU)...")
+    print("Executando varredura expandida (Notas e Discursos)...")
     dados_relatorio = executar_varredura()
     html_final = montar_html_minimalista(dados_relatorio)
     enviar_email(html_final)
