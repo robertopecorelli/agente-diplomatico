@@ -46,7 +46,7 @@ def verificar_reset_diario(username):
 verificar_reset_diario(str_lit.session_state["current_user"])
 
 # ==============================================================================
-# 4. ESTILOS CSS REFINADOS (LAYOUT EDITORIAL FIEL AOS PORTAIS)
+# 4. ESTILOS CSS (LAYOUT EDITORIAL E MÍDIAS)
 # ==============================================================================
 str_lit.markdown("""
     <style>
@@ -65,7 +65,7 @@ str_lit.markdown("""
     }
     .article-container {
         background-color: #FFFFFF;
-        padding: 50px;
+        padding: 45px;
         border-radius: 4px;
         border: 1px solid #E2DED6;
         margin-bottom: 20px;
@@ -73,16 +73,16 @@ str_lit.markdown("""
     }
     .article-container p {
         font-family: 'Plus Jakarta Sans', sans-serif;
-        font-size: 18px;
+        font-size: 17px;
         color: #222222;
         line-height: 1.85;
-        margin-bottom: 24px;
+        margin-bottom: 22px;
     }
     .article-container img, .article-container figure, .article-container picture {
         display: block;
         max-width: 100% !important;
         height: auto !important;
-        margin: 30px auto;
+        margin: 25px auto;
         border-radius: 4px;
         border: 1px solid #E2DED6;
         background-color: #F9F9F9;
@@ -124,7 +124,8 @@ str_lit.markdown("""
 """, unsafe_allow_html=True)
 
 def render_badge(categoria):
-    if "onu" in categoria.lower(): return '<span class="badge badge-onu"><i class="fa-solid fa-globe"></i> ONU</span>'
+    if "onu" in categoria.lower():
+        return '<span class="badge badge-onu"><i class="fa-solid fa-globe"></i> ONU</span>'
     return '<span class="badge badge-mre"><i class="fa-solid fa-landmark"></i> MRE</span>'
 
 # ==============================================================================
@@ -135,7 +136,7 @@ def raspar_conteudo_completo(url):
     idiomas_disponiveis = {}
     conteudo_html = ""
     
-    # Mapeamento exato de URLs multilíngues da ONU News
+    # Mapeamento para portais multilíngues (ex: ONU News)
     if "news.un.org" in url:
         base_un = re.sub(r'news\.un\.org/[a-z]{2}/', 'news.un.org/{lang}/', url)
         idiomas_disponiveis = {
@@ -158,14 +159,14 @@ def raspar_conteudo_completo(url):
         if resposta.status_code == 200:
             soup = BeautifulSoup(resposta.text, 'html.parser')
             
-            # Captura os links multilíngues nativos reais inseridos pelo site via hreflang
+            # Captura links de idiomas alternativos reais do cabeçalho da página (hreflang)
             for lang_link in soup.find_all('link', hreflang=True):
                 lang_code = lang_link.get('hreflang').upper()
                 lang_href = lang_link.get('href')
                 if lang_code and lang_code != "X-DEFAULT" and len(lang_code) <= 5:
                     idiomas_disponiveis[lang_code] = lang_href
 
-            # Captura os seletores oficiais e profundos onde o texto e mídias completas residem
+            # Captura o corpo completo da notícia, notas e discursos
             corpo = (
                 soup.find('div', class_='story-content') or 
                 soup.find('div', class_='field-name-body') or
@@ -177,20 +178,17 @@ def raspar_conteudo_completo(url):
             )
             
             if corpo:
-                # Remove apenas elementos de navegação e rodapés irrelevantes
                 for lixo in corpo(["script", "style", "nav", "footer", "form", "aside", "header", ".share-buttons", ".social-media"]):
                     lixo.extract()
                 conteudo_html = str(corpo)
             else:
-                # Seletor de contingência robusto: coleta todo o miolo rico de texto, figuras e gráficos
-                elementos = soup.find_all(['p', 'h2', 'h3', 'img', 'figure', 'picture', 'blockquote', 'ul', 'ol'])
+                elementos = soup.find_all(['p', 'h2', 'h3', 'img', 'figure', 'picture', 'blockquote'])
                 container_dinamico = BeautifulSoup("<div></div>", "html.parser")
                 div_pai = container_dinamico.div
                 for el in elementos:
                     texto_el = el.get_text(strip=True).lower()
-                    if any(termo in texto_el for termo in ["todos os direitos reservados", "política de privacidade", "cookies", "newsletter"]):
-                        continue
-                    div_pai.append(el)
+                    if not any(termo in texto_el for termo in ["direitos reservados", "política de privacidade", "cookies", "newsletter"]):
+                        div_pai.append(el)
                 conteudo_html = str(div_pai)
                 
     except Exception as e:
@@ -241,7 +239,7 @@ def carregar_noticias():
 acervo_noticias = carregar_noticias()
 
 # ==============================================================================
-# 7. ROTEAMENTO DA PÁGINA INTERNA (DETALHES)
+# 7. ROTEAMENTO DA PÁGINA INTERNA (DETALHES DA NOTÍCIA/DISCURSO)
 # ==============================================================================
 article_id_param = str_lit.query_params.get("article", None)
 
@@ -253,13 +251,12 @@ if article_id_param is not None:
         artigo_atual = None
 
     if artigo_atual:
-        # Extrai o conteúdo integral do site de origem com imagens, gráficos e formatação
+        # Extrai o conteúdo completo do site de origem com todas as fotos, imagens e estrutura
         conteudo_extraido, idiomas_origem = raspar_conteudo_completo(artigo_atual['link'])
         
-        # Garante que o texto completo seja renderizado com prioridade absoluta
         conteudo_final = conteudo_extraido if len(conteudo_extraido) > 150 else f"<div>{artigo_atual['conteudo_rss']}</div>"
 
-        # Barra superior limpa com botão de Voltar e Menu de Idiomas Nativos
+        # Barra superior com botão de Voltar e Menu de Idiomas Nativos
         col_voltar, col_lang = str_lit.columns([3, 1])
         with col_voltar:
             if str_lit.button("← Voltar ao Repositório"):
@@ -268,9 +265,9 @@ if article_id_param is not None:
         
         with col_lang:
             if idiomas_origem:
-                lista_langs = ["Versão Atual (Origem)"] + list(idiomas_origem.keys())
-                lang_escolhida = str_lit.selectbox("🌐 Idiomas Disponíveis:", lista_langs)
-                if lang_escolhida != "Versão Atual (Origem)" and lang_escolhida in idiomas_origem:
+                lista_langs = ["Versão Atual"] + list(idiomas_origem.keys())
+                lang_escolhida = str_lit.selectbox("🌐 Outras Línguas:", lista_langs)
+                if lang_escolhida != "Versão Atual" and lang_escolhida in idiomas_origem:
                     link_traduzido = idiomas_origem[lang_escolhida]
                     str_lit.markdown(f'<meta http-equiv="refresh" content="0; url={link_traduzido}">', unsafe_allow_html=True)
             else:
@@ -278,25 +275,25 @@ if article_id_param is not None:
 
         str_lit.markdown("<br>", unsafe_allow_html=True)
         
-        # Cabeçalho, Órgão e Título Principal
+        # Órgão e Título
         str_lit.markdown(f"<div>{render_badge(artigo_atual['orgao'])}</div>", unsafe_allow_html=True)
         str_lit.markdown(f"<h1 style='font-family: Newsreader, serif; font-size: 38px; margin-top: 10px; margin-bottom: 25px;'>{artigo_atual['titulo']}</h1>", unsafe_allow_html=True)
         
-        # Imagem de Capa em Alta Resolução
+        # Imagem de Capa em Alta Definição
         str_lit.markdown(f"""
             <div style="width: 100%; text-align: center; overflow: hidden; border-radius: 4px; margin-bottom: 30px; border: 1px solid #E2DED6; background-color: #1A1A1A;">
                 <img src="{artigo_atual['imagem']}" style="max-width: 100%; max-height: 550px; object-fit: contain; margin: 0 auto;" alt="Capa" />
             </div>
         """, unsafe_allow_html=True)
         
-        # Corpo Completo da Notícia com Gráficos, Fotos e Estrutura Original
+        # Texto Completo Integrado com Fotos e Gráficos da Origem
         str_lit.markdown(f"""
             <div class="article-container">
                 {conteudo_final}
             </div>
         """, unsafe_allow_html=True)
         
-        # Link discreto e elegante no rodapé conforme solicitado
+        # Link Discreto de Rodapé
         str_lit.markdown(f"""
             <div class="footer-original-link">
                 Publicação original disponível em <a href="{artigo_atual['link']}" target="_blank">{artigo_atual['orgao']}</a>
@@ -306,7 +303,7 @@ if article_id_param is not None:
         str_lit.stop()
 
 # ==============================================================================
-# 8. HOME / LISTAGEM DE NOTÍCIAS
+# 8. HOME / LISTAGEM PRINCIPAL
 # ==============================================================================
 str_lit.markdown("""
     <div style="font-family: 'Newsreader', serif; font-size: 28px; font-weight: 600;">
