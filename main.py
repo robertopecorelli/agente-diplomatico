@@ -1,7 +1,6 @@
 import streamlit as str_lit
-import streamlit.components.v1 as components
 import feedparser
-from datetime import datetime, date
+from datetime import date
 import re
 import stripe
 
@@ -26,7 +25,7 @@ str_lit.set_page_config(
 )
 
 # ==============================================================================
-# 3. GERENCIAMENTO DE SESSÃO E ROTEAMENTO INICIAL
+# 3. GERENCIAMENTO DE SESSÃO E ROTEAMENTO
 # ==============================================================================
 if "users_db" not in str_lit.session_state:
     str_lit.session_state["users_db"] = {
@@ -156,41 +155,31 @@ str_lit.markdown("""
         border-radius: 4px;
         border: 1px solid #E2DED6;
         overflow: hidden;
-        margin-bottom: 20px;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .news-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.04);
+        margin-bottom: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
     }
     .card-img-container {
         width: 100%;
-        height: 200px;
+        height: 180px;
         overflow: hidden;
         background-color: #1A1A1A;
         position: relative;
-        cursor: pointer;
     }
     .card-img {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        transition: transform 0.5s ease;
     }
-    .news-card:hover .card-img { transform: scale(1.03); }
-    
-    .card-body { padding: 20px; }
+    .card-body { padding: 16px; }
     .card-title {
         font-family: 'Newsreader', serif;
-        font-size: 20px;
+        font-size: 19px;
         font-weight: 600;
         color: #1A1A1A;
         line-height: 1.25;
-        margin-bottom: 10px;
-        cursor: pointer;
+        margin-bottom: 8px;
     }
-    .card-title:hover { color: #555555; text-decoration: underline; }
-    .card-excerpt { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13.5px; color: #666666; line-height: 1.6; margin-bottom: 14px; }
+    .card-excerpt { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; color: #666666; line-height: 1.5; margin-bottom: 10px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -473,7 +462,7 @@ if busca:
     noticias_filtradas = [n for n in noticias_filtradas if busca.lower() in n["titulo"].lower() or busca.lower() in n["resumo"].lower()]
 
 # ==============================================================================
-# 11. GRADE DE NOTÍCIAS COM CLIQUE CORRIGIDO E BOTÕES DE SUPORTE
+# 11. GRADE DE NOTÍCIAS COM ACESSO DIRETO VIA BOTÃO NATIVO
 # ==============================================================================
 str_lit.markdown("### 📰 Acervo de Documentos & Discursos Diplomáticos")
 
@@ -484,24 +473,23 @@ if len(noticias_filtradas) > 0:
             badge_orgao = render_badge(item['orgao'])
             badge_tipo = render_badge(item['tipo'])
             
-            # Script JS ajustado com window.location.pathname para funcionar perfeitamente em qualquer servidor/nuvem
-            card_html = f"""
+            # Renderização limpa do card sem dependência de scripts externos de redirecionamento
+            str_lit.markdown(f"""
                 <div class="news-card">
-                    <div class="card-img-container" onclick="window.location.href = window.location.pathname + '?article={item['id']}';">
+                    <div class="card-img-container">
                         <img src="{item['imagem']}" class="card-img" alt="Capa" />
                     </div>
                     <div class="card-body">
                         <div>{badge_orgao}{badge_tipo}</div>
                         <div style="font-size: 11px; color: #555555; margin-bottom: 6px; font-weight: 600;">🏷️ Tema: {item['tema']} | 📍 {item['regiao']}</div>
-                        <div class="card-title" onclick="window.location.href = window.location.pathname + '?article={item['id']}';">{item['titulo']}</div>
+                        <div class="card-title">{item['titulo']}</div>
                         <div class="card-excerpt">{item['resumo']}</div>
                     </div>
                 </div>
-            """
-            str_lit.markdown(card_html, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
             
-            # Botão oficial do Streamlit como alternativa nativa infalível de acesso
-            if str_lit.button(f"📖 LER COMPLETO", key=f"read_grid_{item['id']}", use_container_width=True):
+            # Botão nativo e direto para abrir a página detalhada instantaneamente
+            if str_lit.button(f"📖 ABRIR NOTÍCIA / DISCURSO COMPLETO", key=f"read_grid_{item['id']}", use_container_width=True):
                 if user_data["plan"] == "free":
                     user_data["access_count"] += 1
                 str_lit.query_params["article"] = str(item['id'])
