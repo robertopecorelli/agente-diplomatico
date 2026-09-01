@@ -1,5 +1,7 @@
 import streamlit as str_lit
 import feedparser
+from bs4 import BeautifulSoup
+import requests
 from datetime import date
 import re
 import stripe
@@ -180,6 +182,22 @@ str_lit.markdown("""
         margin-bottom: 8px;
     }
     .card-excerpt { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; color: #666666; line-height: 1.5; margin-bottom: 10px; }
+    
+    /* CONTEÚDO EDITORIAL INTEGRAL */
+    .article-content p {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 16.5px;
+        color: #222222;
+        line-height: 1.85;
+        margin-bottom: 20px;
+    }
+    .article-content img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 4px;
+        margin: 20px 0;
+        border: 1px solid #E2DED6;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -220,7 +238,29 @@ def get_stripe_class(categoria):
     else: return "aoc-stripe-mre"
 
 # ==============================================================================
-# 6. EXTRATOR E CARREGAMENTO DE FEED COM CLASSIFICAÇÃO DE TEMAS DE ORIGEM
+# 6. EXTRATOR DE CONTEÚDO INTEGRAL (WEBSCRAPING DA URL DE ORIGEM)
+# ==============================================================================
+@str_lit.cache_data(ttl=3600)
+def raspar_conteudo_integral(url):
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        response = requests.get(url, headers=headers, timeout=5)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Tenta extrair o corpo principal do site original (MRE / ONU)
+            corpo = soup.find('div', id='parent-fieldname-text') or soup.find('article') or soup.find('div', class_='content')
+            if corpo:
+                # Remove elementos indesejados se houverem
+                for script in corpo(["script", "style", "nav"]):
+                    script.extract()
+                return str(corpo)
+    except Exception:
+        pass
+    return None
+
+# ==============================================================================
+# 7. EXTRATOR E CARREGAMENTO DE FEED
 # ==============================================================================
 FONTES = {
     "MRE (Notas)": ("https://www.gov.br/mre/pt-br/centrais-de-conteudo/notas-a-imprensa/RSS", "MRE", "Nota à Imprensa"),
@@ -274,7 +314,8 @@ def carregar_noticias():
         feed = feedparser.parse(url)
         for entry in feed.entries[:10]:
             resumo = re.sub('<[^<]+?>', '', entry.get("summary", entry.get("description", "")))[:250] + "..."
-            texto_completo = re.sub('<[^<]+?>', '', entry.get("summary", entry.get("description", "")))
+            conteudo_rss = entry.get("content", [{"value": entry.get("summary", entry.get("description", ""))}] )[0]["value"]
+            
             imagem_url = extrair_url_imagem(entry, idx_count)
             tipo_atribuido = tipos_possiveis[idx_count % len(tipos_possiveis)]
             tema_atribuido = temas_origem[idx_count % len(temas_origem)]
@@ -286,7 +327,7 @@ def carregar_noticias():
                 "id": idx_count,
                 "titulo": entry.title,
                 "resumo": resumo,
-                "conteudo_completo": texto_completo if len(texto_completo) > 50 else f"Conteúdo institucional oficial obtido através do feed de origem. {resumo}",
+                "conteudo_rss": conteudo_rss,
                 "orgao": orgao,
                 "tipo": tipo_atribuido,
                 "tema": tema_atribuido,
@@ -302,7 +343,7 @@ acervo_noticias = carregar_noticias()
 temas_disponiveis = sorted(list(set([item["tema"] for item in acervo_noticias])))
 
 # ==============================================================================
-# 7. ROTEAMENTO DA PÁGINA INTERNA DE DETALHES (ESTILO AOC.MEDIA)
+# 8. ROTEAMENTO DA PÁGINA INTERNA DE DETALHES (ESTILO AOC.MEDIA COMPLETO)
 # ==============================================================================
 article_id_param = str_lit.query_params.get("article", None)
 
@@ -316,7 +357,7 @@ if article_id_param is not None:
     if artigo_atual:
         stripe_classe = get_stripe_class(artigo_atual['tipo'])
         
-        # Faixa colorida no topo (estilo AOC.media)
+        # 1. Faixa colorida no topo (estilo AOC.media)
         str_lit.markdown(f'<div class="{stripe_classe}"></div>', unsafe_allow_html=True)
         
         col_voltar, col_lang = str_lit.columns([3, 1])
@@ -326,44 +367,51 @@ if article_id_param is not None:
                 str_lit.rerun()
         
         with col_lang:
-            idioma_sel = str_lit.selectbox("🌐 Idioma / Language", ["Português (PT)", "English (EN)", "Español (ES)", "Français (FR)"], key="select_lang")
+            # Opções de línguas disponíveis solicitadas
+            str_lit.selectbox(
+                "🌐 Idiomas Disponíveis", 
+                ["Português (PT)", "English (EN)", "Español (ES)", "Français (FR)"], 
+                key="select_lang"
+            )
 
         str_lit.markdown("<br>", unsafe_allow_html=True)
         
-        # Badges e Metadados
+        # 2. Badges e Metadados editoriais
         str_lit.markdown(f"<div>{render_badge(artigo_atual['orgao'])}{render_badge(artigo_atual['tipo'])}</div>", unsafe_allow_html=True)
-        str_lit.markdown(f"<div style='font-size: 13px; color: #555555; margin-top: 4px; font-weight: 500;'>🏷️ Tema: {artigo_atual['tema']} &nbsp;|&nbsp; 📍 {artigo_atual['regiao']} &nbsp;|&nbsp; 📅 {artigo_atual['data']}</div>", unsafe_allow_html=True)
+        str_lit.markdown(f"<div style='font-size: 13px; color: #555555; margin-top: 6px; font-weight: 500;'>🏷️ Tema: {artigo_atual['tema']} &nbsp;|&nbsp; 📍 {artigo_atual['regiao']} &nbsp;|&nbsp; 📅 {artigo_atual['data']}</div>", unsafe_allow_html=True)
         
-        # Título
-        str_lit.markdown(f"<h1 style='font-family: Newsreader, serif; font-size: 34px; margin-top: 15px; margin-bottom: 20px; line-height: 1.2;'>{artigo_atual['titulo']}</h1>", unsafe_allow_html=True)
+        # 3. Título Principal em Serifado de Alto Padrão
+        str_lit.markdown(f"<h1 style='font-family: Newsreader, serif; font-size: 36px; margin-top: 15px; margin-bottom: 20px; line-height: 1.2;'>{artigo_atual['titulo']}</h1>", unsafe_allow_html=True)
         
-        # Imagem de Capa
+        # 4. Imagem Principal de Capa
         str_lit.markdown(f"""
-            <div style="width: 100%; max-height: 450px; overflow: hidden; border-radius: 4px; margin-bottom: 25px; border: 1px solid #E2DED6;">
-                <img src="{artigo_atual['imagem']}" style="width: 100%; object-fit: cover;" alt="Capa" />
+            <div style="width: 100%; max-height: 480px; overflow: hidden; border-radius: 4px; margin-bottom: 25px; border: 1px solid #E2DED6;">
+                <img src="{artigo_atual['imagem']}" style="width: 100%; object-fit: cover;" alt="Capa da Matéria" />
             </div>
         """, unsafe_allow_html=True)
         
-        # Corpo do Texto
+        # 5. Corpo Completo com Imagens e Notas Originais (Scraping ou RSS Enriquecido)
+        conteudo_html_integral = raspar_conteudo_integral(artigo_atual['link']) or artigo_atual['conteudo_rss']
+        
         str_lit.markdown(f"""
-            <div style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 16px; color: #2A2A2A; line-height: 1.8; margin-bottom: 30px;">
-                <p>{artigo_atual['conteudo_completo']}</p>
+            <div class="article-content" style="background-color: #FFFFFF; padding: 35px; border-radius: 4px; border: 1px solid #E2DED6; margin-bottom: 30px;">
+                {conteudo_html_integral}
             </div>
         """, unsafe_allow_html=True)
         
         str_lit.markdown("---")
         
-        # Botão para fonte original externa
+        # 6. Rodapé da Matéria com link para a publicação oficial de origem
         col_ext_1, col_ext_2 = str_lit.columns([2, 2])
         with col_ext_1:
-            if str_lit.button("🔗 Acessar Publicação Completa no Site de Origem", use_container_width=True):
+            if str_lit.button("🔗 Ver Publicação Oficial no Site de Origem", use_container_width=True):
                 str_lit.markdown(f'<meta http-equiv="refresh" content="0; url={artigo_atual["link"]}">', unsafe_allow_html=True)
                 str_lit.rerun()
 
         str_lit.stop()
 
 # ==============================================================================
-# 8. LAYOUT PRINCIPAL (HOME / ACERVO)
+# 9. LAYOUT PRINCIPAL (HOME / ACERVO)
 # ==============================================================================
 user_cur = str_lit.session_state["current_user"]
 user_data = str_lit.session_state["users_db"].get(user_cur, {"plan": "free", "access_count": 0})
@@ -402,7 +450,7 @@ with col_top_actions:
 str_lit.markdown("<hr style='border: none; border-top: 1px solid #1A1A1A; margin-top: 10px; margin-bottom: 24px;'>", unsafe_allow_html=True)
 
 # ==============================================================================
-# 9. BARRA LATERAL (FILTROS)
+# 10. BARRA LATERAL (FILTROS)
 # ==============================================================================
 with str_lit.sidebar:
     str_lit.markdown("### 🏛️ REPOSITÓRIO")
@@ -431,7 +479,7 @@ with str_lit.sidebar:
     busca = str_lit.text_input("🔍 Busca por palavra-chave", placeholder="Ex: G20, COP, CSNU")
 
 # ==============================================================================
-# 10. LÓGICA DE FILTRAGEM
+# 11. LÓGICA DE FILTRAGEM
 # ==============================================================================
 noticias_filtradas = acervo_noticias
 
@@ -462,7 +510,7 @@ if busca:
     noticias_filtradas = [n for n in noticias_filtradas if busca.lower() in n["titulo"].lower() or busca.lower() in n["resumo"].lower()]
 
 # ==============================================================================
-# 11. GRADE DE NOTÍCIAS COM ACESSO DIRETO VIA BOTÃO NATIVO
+# 12. GRADE DE NOTÍCIAS COM ACESSO DIRETO VIA BOTÃO NATIVO
 # ==============================================================================
 str_lit.markdown("### 📰 Acervo de Documentos & Discursos Diplomáticos")
 
@@ -473,7 +521,6 @@ if len(noticias_filtradas) > 0:
             badge_orgao = render_badge(item['orgao'])
             badge_tipo = render_badge(item['tipo'])
             
-            # Renderização limpa do card sem dependência de scripts externos de redirecionamento
             str_lit.markdown(f"""
                 <div class="news-card">
                     <div class="card-img-container">
@@ -488,7 +535,6 @@ if len(noticias_filtradas) > 0:
                 </div>
             """, unsafe_allow_html=True)
             
-            # Botão nativo e direto para abrir a página detalhada instantaneamente
             if str_lit.button(f"📖 ABRIR NOTÍCIA / DISCURSO COMPLETO", key=f"read_grid_{item['id']}", use_container_width=True):
                 if user_data["plan"] == "free":
                     user_data["access_count"] += 1
