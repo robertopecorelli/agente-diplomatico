@@ -33,7 +33,7 @@ if "show_register_modal" not in str_lit.session_state:
     str_lit.session_state["show_register_modal"] = False
 
 # ==============================================================================
-# 3. ESTILOS CSS REFINADOS (GRID SIMÉTRICO E LEITURA IMersiva)
+# 3. ESTILOS CSS REFINADOS (GRID SIMÉTRICO E LEITURA IMERSIVA)
 # ==============================================================================
 str_lit.markdown("""
     <style>
@@ -178,7 +178,7 @@ def render_badge(categoria):
         return '<span class="badge badge-notas"><i class="fa-solid fa-file-lines"></i> Nota</span>'
 
 # ==============================================================================
-# 5. CARREGAMENTO INTELIGENTE E ANTI-DUPLICAÇÃO DOS FEEDS
+# 5. CARREGAMENTO INTELIGENTE E ANTI-DUPLICAÇÃO RIGOROSA DOS FEEDS
 # ==============================================================================
 FONTES = [
     ("https://www.gov.br/mre/pt-br/centrais-de-conteudo/notas-a-imprensa/RSS", "MRE", "Nota à Imprensa"),
@@ -195,6 +195,8 @@ FALLBACK_IMAGES = [
 def carregar_noticias():
     itens = []
     urls_vistas = set()
+    titulos_vistos = set()
+    
     regioes_lista = ["Global", "América do Sul", "Europa", "Oriente Médio"]
     temas_origem = ["Governança Global", "Segurança e Paz", "Direito Internacional", "Economia e Comércio"]
 
@@ -203,13 +205,17 @@ def carregar_noticias():
         try:
             feed = feedparser.parse(url_feed)
             for entry in feed.entries:
-                link_artigo = entry.get("link", "")
-                if not link_artigo or link_artigo in urls_vistas:
-                    continue  # Evita duplicatas exatas
+                link_artigo = entry.get("link", "").strip()
+                titulo_artigo = entry.get("title", "").strip().lower()
+                
+                # Validação estrita anti-duplicação (por link e por título normalizado)
+                if not link_artigo or link_artigo in urls_vistas or not titulo_artigo or titulo_artigo in titulos_vistos:
+                    continue  
                 
                 urls_vistas.add(link_artigo)
+                titulos_vistos.add(titulo_artigo)
 
-                # Extração profunda do conteúdo completo (prioriza content:encoded)
+                # Extração profunda do conteúdo completo
                 raw_content = ""
                 if 'content' in entry and len(entry.content) > 0:
                     raw_content = entry.content[0].get('value', '')
@@ -218,14 +224,12 @@ def carregar_noticias():
 
                 soup = BeautifulSoup(raw_content, "html.parser")
                 
-                # Gera resumo limpo para o card
                 resumo_limpo = soup.get_text().strip()
                 if len(resumo_limpo) > 220:
                     resumo_limpo = resumo_limpo[:220] + "..."
                 if not resumo_limpo:
                     resumo_limpo = "Consulte o texto completo e os desdobramentos oficiais diretamente no repositório institucional."
 
-                # Extração de imagem do feed ou do corpo HTML
                 imagem_url = FALLBACK_IMAGES[idx_count % len(FALLBACK_IMAGES)]
                 if 'media_content' in entry and len(entry.media_content) > 0:
                     imagem_url = entry.media_content[0].get('url', imagem_url)
