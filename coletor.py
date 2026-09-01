@@ -13,7 +13,6 @@ from google.genai import types
 URL_BANCO_PADRAO = "postgresql://postgres.mgplflhxuefrpayazhyn:Jm1r4jZGIYWYcmqM@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
 
-# Inicializa o cliente Gemini se a chave estiver configurada nas variáveis de ambiente
 gemini_key = os.getenv("GEMINI_API_KEY")
 ai_client = genai.Client(api_key=gemini_key) if gemini_key else None
 
@@ -21,9 +20,10 @@ def conectar_banco():
     return psycopg2.connect(URL_BANCO_PADRAO)
 
 def analisar_noticia_com_gemini(titulo, conteudo, max_retries=3):
-    """Usa o Gemini 3.6 Flash para gerar resumo e classificar com retentativas automáticas."""
+    """Usa o Gemini 3.6 Flash respeitando o limite da cota gratuita."""
     if not ai_client:
-        return "Resumo indisponível (Chave API não configurada).", "Política Internacional", []
+        print("  ⚠️ Chave GEMINI_API_KEY não encontrada no ambiente.")
+        return "Resumo indisponível.", "Política Internacional", []
 
     prompt = f"""
     Você é um assistente especializado na preparação para o CACD (Concurso de Admissão à Carreira de Diplomata).
@@ -50,16 +50,18 @@ def analisar_noticia_com_gemini(titulo, conteudo, max_retries=3):
             dados = json.loads(response.text)
             return dados.get("resumo", ""), dados.get("disciplina", "Política Internacional"), dados.get("tags", [])
         except Exception as e:
-            if "503" in str(e) and tentativa < max_retries - 1:
-                tempo_espera = 2 ** (tentativa + 1)
-                print(f"-> Servidor ocupado (503). Aguardando {tempo_espera}s para tentar novamente...")
+            if "503" in str(e) or "429" in str(e):
+                tempo_espera = 5 * (tentativa + 1)
+                print(f"  ⚠️ Cota/Servidor ocupado. Aguardando {tempo_espera}s para tentar novamente...")
                 time.sleep(tempo_espera)
             else:
-                print(f"-> Aviso: Falha no enriquecimento com IA: {e}")
+                print(f"  ❌ Erro no Gemini: {e}")
                 return "Erro ao gerar resumo.", "Política Internacional", []
+    
+    return "Erro ao gerar resumo.", "Política Internacional", []
 
 def coletar_noticias_mre():
-    print(f"[{datetime.now()}] Raspando MRE...")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Raspando MRE...")
     url = "https://www.gov.br/mre/pt-br/canais_atendimento/imprensa/notas-a-imprensa"
     artigos = []
 
@@ -84,7 +86,7 @@ def coletar_noticias_mre():
     return artigos
 
 def coletar_noticias_onu():
-    print(f"[{datetime.now()}] Coletando RSS ONU...")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] Coletando RSS ONU...")
     url = "https://news.un.org/feed/subscribe/pt/news/all/rss.xml"
     artigos = []
 
@@ -108,8 +110,15 @@ def salvar_no_banco(artigos):
     cursor = conexao.cursor()
 
     dados_processados = []
-    for i, item in enumerate(artigos, 1):
-        print(f"[{i}/{len(artigos)}] Processando via Gemini: {item['titulo'][:50]}...")
+    
+    # Para evitar estourar limites em testes, processa as primeiras 5 notícias por vez
+    artigos_para_processar = artigos[:5]
+    total = len(artigos_para_processar)
+
+    print(f"\n--- Processando {total} notícias com a IA ---")
+
+    for i, item in enumerate(artigos_para_processar, 1):
+        print(f"[{i}/{total}] Analisando: {item['titulo'][:60]}...")
         resumo_ia, disciplina, tags = analisar_noticia_com_gemini(item["titulo"], item["conteudo_bruto"])
         
         dados_processados.append((
@@ -117,7 +126,10 @@ def salvar_no_banco(artigos):
             item["data_publicacao"], item["conteudo_bruto"], 
             resumo_ia, disciplina, tags
         ))
-        time.sleep(1)  # Intervalo de 1s para respeitar os limites de requisições da API
+        
+        # Espera 4.5s para manter a cota abaixo de 15 requisições por minuto
+        if i < total:
+            time.sleep(4.5)
 
     sql = """
         INSERT INTO artigos_diplomaticos (titulo, link, fonte, data_publicacao, conteudo_bruto, resumo_ia, disciplina_cacd, tags)
@@ -131,10 +143,10 @@ def salvar_no_banco(artigos):
     try:
         execute_values(cursor, sql, dados_processados)
         conexao.commit()
-        print(f"[{datetime.now()}] Sucesso: {len(dados_processados)} artigos salvos e enriquecidos com IA.")
+        print(f"\n✅ Sucesso: {len(dados_processados)} artigos salvos e atualizados no Supabase!")
     except Exception as e:
         conexao.rollback()
-        print(f"Erro no banco: {e}")
+        print(f"❌ Erro ao gravar no Supabase: {e}")
     finally:
         cursor.close()
         conexao.close()
