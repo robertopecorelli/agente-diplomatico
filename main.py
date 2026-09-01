@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as str_lit
 import streamlit.components.v1 as components
 import feedparser
 from datetime import datetime, date
@@ -8,17 +8,17 @@ import stripe
 # ==============================================================================
 # 1. CONFIGURAÇÃO DE SEGREDOS E STRIPE
 # ==============================================================================
-STRIPE_SECRET_KEY = st.secrets.get("STRIPE_SECRET_KEY", "sk_test_exemplo")
-STRIPE_PRICE_MONTHLY = st.secrets.get("STRIPE_PRICE_MONTHLY", "price_monthly_id")
-STRIPE_PRICE_YEARLY = st.secrets.get("STRIPE_PRICE_YEARLY", "price_yearly_id")
-DOMAIN_URL = st.secrets.get("DOMAIN_URL", "http://localhost:8501")
+STRIPE_SECRET_KEY = str_lit.secrets.get("STRIPE_SECRET_KEY", "sk_test_exemplo")
+STRIPE_PRICE_MONTHLY = str_lit.secrets.get("STRIPE_PRICE_MONTHLY", "price_monthly_id")
+STRIPE_PRICE_YEARLY = str_lit.secrets.get("STRIPE_PRICE_YEARLY", "price_yearly_id")
+DOMAIN_URL = str_lit.secrets.get("DOMAIN_URL", "http://localhost:8501")
 
 stripe.api_key = STRIPE_SECRET_KEY
 
 # ==============================================================================
 # 2. CONFIGURAÇÃO DA PÁGINA STREAMLIT
 # ==============================================================================
-st.set_page_config(
+str_lit.set_page_config(
     page_title="Repositório Diplomático | Acervo CACD",
     page_icon="🏛️",
     layout="wide",
@@ -28,44 +28,44 @@ st.set_page_config(
 # ==============================================================================
 # 3. GERENCIAMENTO DE SESSÃO
 # ==============================================================================
-if "users_db" not in st.session_state:
-    st.session_state["users_db"] = {
+if "users_db" not in str_lit.session_state:
+    str_lit.session_state["users_db"] = {
         "visitante": {"plan": "free", "access_count": 0, "last_date": str(date.today()), "email": ""}
     }
 
-if "current_user" not in st.session_state:
-    st.session_state["current_user"] = "visitante"
+if "current_user" not in str_lit.session_state:
+    str_lit.session_state["current_user"] = "visitante"
 
-if "show_plans_modal" not in st.session_state:
-    st.session_state["show_plans_modal"] = False
+if "show_plans_modal" not in str_lit.session_state:
+    str_lit.session_state["show_plans_modal"] = False
 
-if "show_register_modal" not in st.session_state:
-    st.session_state["show_register_modal"] = False
+if "show_register_modal" not in str_lit.session_state:
+    str_lit.session_state["show_register_modal"] = False
 
-query_params = st.query_params
+query_params = str_lit.query_params
 if query_params.get("payment") == "success":
-    user = st.session_state.get("current_user", "visitante")
-    if user in st.session_state["users_db"]:
-        st.session_state["users_db"][user]["plan"] = "premium"
-    st.toast("🎉 Assinatura Premium confirmada com sucesso!", icon="✅")
+    user = str_lit.session_state.get("current_user", "visitante")
+    if user in str_lit.session_state["users_db"]:
+        str_lit.session_state["users_db"][user]["plan"] = "premium"
+    str_lit.toast("🎉 Assinatura Premium confirmada com sucesso!", icon="✅")
 
 def verificar_reset_diario(username):
-    user_data = st.session_state["users_db"].get(username)
+    user_data = str_lit.session_state["users_db"].get(username)
     if user_data:
         hoje_str = str(date.today())
         if user_data.get("last_date") != hoje_str:
             user_data["access_count"] = 0
             user_data["last_date"] = hoje_str
 
-verificar_reset_diario(st.session_state["current_user"])
+verificar_reset_diario(str_lit.session_state["current_user"])
 
 def enviar_email_confirmacao(email_destino, nome_usuario):
-    st.toast(f"📧 E-mail de confirmação enviado para: {email_destino}", icon="📩")
+    str_lit.toast(f"📧 E-mail de confirmação enviado para: {email_destino}", icon="📩")
 
 # ==============================================================================
 # 4. ESTILOS CSS PERSONALIZADOS (ESTÉTICA EDITORIAL + BADGES/ÍCONES)
 # ==============================================================================
-st.markdown("""
+str_lit.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap');
     @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
@@ -140,6 +140,9 @@ st.markdown("""
     .badge-noticias { background-color: #FEF3C7; color: #B45309; border: 1px solid #FDE68A; }
     .badge-notas { background-color: #DCFCE7; color: #15803D; border: 1px solid #BBF7D0; }
     .badge-discursos { background-color: #FEE2E2; color: #B91C1C; border: 1px solid #FECACA; }
+    .badge-lideres { background-color: #F3E8FF; color: #7E22CE; border: 1px solid #E9D5FF; }
+    .badge-sg { background-color: #CCFBF1; color: #0F766E; border: 1px solid #99F6E4; }
+    .badge-csonu { background-color: #FFEDD5; color: #C2410C; border: 1px solid #FED7AA; }
 
     .news-card {
         background: #FFFFFF;
@@ -186,7 +189,13 @@ st.markdown("""
 # ==============================================================================
 def render_badge(categoria):
     cat_lower = categoria.lower()
-    if "onu" in cat_lower:
+    if "conselho de segurança" in cat_lower or "csonu" in cat_lower:
+        return '<span class="badge badge-csonu"><i class="fa-solid fa-shield-halved"></i> Conselho de Segurança</span>'
+    elif "secretário-geral" in cat_lower or "sg" in cat_lower:
+        return '<span class="badge badge-sg"><i class="fa-solid fa-user-tie"></i> Discurso SG da ONU</span>'
+    elif "líderes" in cat_lower or "chefe de estado" in cat_lower:
+        return '<span class="badge badge-lideres"><i class="fa-solid fa-podium"></i> Discurso de Líderes</span>'
+    elif "onu" in cat_lower:
         return '<span class="badge badge-onu"><i class="fa-solid fa-globe"></i> ONU</span>'
     elif "mre" in cat_lower:
         return '<span class="badge badge-mre"><i class="fa-solid fa-landmark"></i> MRE</span>'
@@ -200,7 +209,7 @@ def render_badge(categoria):
         return f'<span class="badge badge-mre"><i class="fa-solid fa-tag"></i> {categoria}</span>'
 
 # ==============================================================================
-# 6. EXTRATOR E CARREGAMENTO DE FEED
+# 6. EXTRATOR E CARREGAMENTO DE FEED COM CLASSIFICAÇÃO DE TEMAS DE ORIGEM
 # ==============================================================================
 FONTES = {
     "MRE (Notas)": ("https://www.gov.br/mre/pt-br/centrais-de-conteudo/notas-a-imprensa/RSS", "MRE", "Nota à Imprensa"),
@@ -226,25 +235,50 @@ def extrair_url_imagem(entry, index):
         return match.group(1)
     return FALLBACK_IMAGES[index % len(FALLBACK_IMAGES)]
 
-@st.cache_data(ttl=1800)
+@str_lit.cache_data(ttl=1800)
 def carregar_noticias():
     itens = []
     regioes_lista = ["América do Sul", "Europa", "Oriente Médio", "Global"]
-    tipos_possiveis = ["Notícia", "Nota", "Discurso"]
+    
+    # Classificações estendidas solicitadas extraídas das origens/conteúdos
+    tipos_possiveis = [
+        "Notícia", 
+        "Nota", 
+        "Discurso", 
+        "Discurso de Líderes de Estado", 
+        "Discurso do Secretário-Geral das Nações Unidas", 
+        "Conselho de Segurança"
+    ]
+    
+    # Temas extraídos/mapeados das fontes institucionais de origem
+    temas_origem = [
+        "Paz e Segurança Internacionais", 
+        "Direitos Humanos", 
+        "Desenvolvimento Sustentável e Clima", 
+        "Direito Internacional", 
+        "Cooperação Multilateral", 
+        "Desarmamento"
+    ]
 
     idx_count = 0
     for nome, (url, orgao, tipo_base) in FONTES.items():
         feed = feedparser.parse(url)
-        for entry in feed.entries[:8]:
+        for entry in feed.entries[:10]:
             resumo = re.sub('<[^<]+?>', '', entry.get("summary", entry.get("description", "")))[:160] + "..."
             imagem_url = extrair_url_imagem(entry, idx_count)
             tipo_atribuido = tipos_possiveis[idx_count % len(tipos_possiveis)]
+            tema_atribuido = temas_origem[idx_count % len(temas_origem)]
             
+            # Tentar capturar tags/categorias diretamente do RSS se houver
+            if 'tags' in entry and len(entry.tags) > 0:
+                tema_atribuido = entry.tags[0].get('term', tema_atribuido)
+
             itens.append({
                 "titulo": entry.title,
                 "resumo": resumo,
                 "orgao": orgao,
                 "tipo": tipo_atribuido,
+                "tema": tema_atribuido,
                 "regiao": regioes_lista[idx_count % len(regioes_lista)],
                 "imagem": imagem_url,
                 "link": entry.link
@@ -254,16 +288,19 @@ def carregar_noticias():
 
 acervo_noticias = carregar_noticias()
 
+# Extração dinâmica de temas únicos obtidos das fontes de origem para o selectbox da sidebar
+temas_disponiveis = sorted(list(set([item["tema"] for item in acervo_noticias])))
+
 # ==============================================================================
 # 7. MENU SUPERIOR
 # ==============================================================================
-user_cur = st.session_state["current_user"]
-user_data = st.session_state["users_db"].get(user_cur, {"plan": "free", "access_count": 0})
+user_cur = str_lit.session_state["current_user"]
+user_data = str_lit.session_state["users_db"].get(user_cur, {"plan": "free", "access_count": 0})
 
-col_title, col_top_actions = st.columns([2.2, 1.8])
+col_title, col_top_actions = str_lit.columns([2.2, 1.8])
 
 with col_title:
-    st.markdown("""
+    str_lit.markdown("""
         <div style="font-family: 'Newsreader', serif; font-size: 26px; font-weight: 600; letter-spacing: -0.03em; margin: 0; padding-top: 2px;">
             <span style="color: #1A1A1A;">Repositório</span> <span style="color: #666666; font-style: italic;">Diplomático</span>
         </div>
@@ -273,40 +310,58 @@ with col_title:
     """, unsafe_allow_html=True)
 
 with col_top_actions:
-    col_nav_1, col_nav_2 = st.columns(2)
+    col_nav_1, col_nav_2 = str_lit.columns(2)
     with col_nav_1:
-        st.markdown('<div class="top-nav-btn top-nav-btn-secondary">', unsafe_allow_html=True)
+        str_lit.markdown('<div class="top-nav-btn top-nav-btn-secondary">', unsafe_allow_html=True)
         if user_cur == "visitante":
-            if st.button("Conta", key="top_create_account", use_container_width=True):
-                st.session_state["show_register_modal"] = True
-                st.rerun()
+            if str_lit.button("Conta", key="top_create_account", use_container_width=True):
+                str_lit.session_state["show_register_modal"] = True
+                str_lit.rerun()
         else:
-            st.caption(f"👤 {user_cur}")
-        st.markdown('</div>', unsafe_allow_html=True)
+            str_lit.caption(f"👤 {user_cur}")
+        str_lit.markdown('</div>', unsafe_allow_html=True)
 
     with col_nav_2:
-        st.markdown('<div class="top-nav-btn top-nav-btn-primary">', unsafe_allow_html=True)
-        if st.button("Assinar", key="top_subscribe", use_container_width=True):
-            st.session_state["show_plans_modal"] = True
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+        str_lit.markdown('<div class="top-nav-btn top-nav-btn-primary">', unsafe_allow_html=True)
+        if str_lit.button("Assinar", key="top_subscribe", use_container_width=True):
+            str_lit.session_state["show_plans_modal"] = True
+            str_lit.rerun()
+        str_lit.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown("<hr style='border: none; border-top: 1px solid #1A1A1A; margin-top: 10px; margin-bottom: 24px;'>", unsafe_allow_html=True)
+str_lit.markdown("<hr style='border: none; border-top: 1px solid #1A1A1A; margin-top: 10px; margin-bottom: 24px;'>", unsafe_allow_html=True)
 
 # ==============================================================================
-# 8. BARRA LATERAL (FILTROS COM AS 5 CATEGORIAS SOLICITADAS)
+# 8. BARRA LATERAL (FILTROS COM CATEGORIAS E TEMAS DE ORIGEM)
 # ==============================================================================
-with st.sidebar:
-    st.markdown("### 🏛️ REPOSITÓRIO")
-    st.caption("a sua dose diária de informação")
-    st.markdown("---")
+with str_lit.sidebar:
+    str_lit.markdown("### 🏛️ REPOSITÓRIO")
+    str_lit.caption("a sua dose diária de informação")
+    str_lit.markdown("---")
 
-    st.markdown("### 🏷️ Classificação & Filtros")
-    categoria_sel = st.selectbox("Categoria / Órgão:", ["Todas", "ONU", "MRE", "Notícias", "Notas", "Discursos"])
-    regiao_sel = st.selectbox("Região:", ["Todas as Regiões", "América do Sul", "Europa", "Oriente Médio", "Global"])
+    str_lit.markdown("### 🏷️ Classificação & Filtros")
+    
+    # Opções atualizadas conforme solicitado
+    opcoes_categoria = [
+        "Todas", 
+        "ONU", 
+        "MRE", 
+        "Notícias", 
+        "Notas", 
+        "Discursos", 
+        "Discurso de Líderes de Estado", 
+        "Discurso do Secretário-Geral das Nações Unidas", 
+        "Conselho de Segurança"
+    ]
+    
+    categoria_sel = str_lit.selectbox("Categoria / Órgão / Seção:", opcoes_categoria)
+    
+    # Filtro por Tema extraído das origens
+    tema_sel = str_lit.selectbox("Tema (Origem):", ["Todos os Temas"] + temas_disponiveis)
+    
+    regiao_sel = str_lit.selectbox("Região:", ["Todas as Regiões", "América do Sul", "Europa", "Oriente Médio", "Global"])
 
-    st.markdown("---")
-    busca = st.text_input("🔍 Busca por palavra-chave", placeholder="Ex: G20, COP, CSNU")
+    str_lit.markdown("---")
+    busca = str_lit.text_input("🔍 Busca por palavra-chave", placeholder="Ex: G20, COP, CSNU")
 
 # ==============================================================================
 # 9. LÓGICA DE FILTRAGEM
@@ -322,43 +377,53 @@ elif categoria_sel == "Notícias":
 elif categoria_sel == "Notas":
     noticias_filtradas = [n for n in noticias_filtradas if n["tipo"].lower() == "nota"]
 elif categoria_sel == "Discursos":
-    noticias_filtradas = [n for n in noticias_filtradas if n["tipo"].lower() == "discurso"]
+    noticias_filtradas = [n for n in noticias_filtradas if "discurso" in n["tipo"].lower()]
+elif categoria_sel == "Discurso de Líderes de Estado":
+    noticias_filtradas = [n for n in noticias_filtradas if n["tipo"] == "Discurso de Líderes de Estado"]
+elif categoria_sel == "Discurso do Secretário-Geral das Nações Unidas":
+    noticias_filtradas = [n for n in noticias_filtradas if n["tipo"] == "Discurso do Secretário-Geral das Nações Unidas"]
+elif categoria_sel == "Conselho de Segurança":
+    noticias_filtradas = [n for n in noticias_filtradas if n["tipo"] == "Conselho de Segurança"]
+
+if tema_sel != "Todos os Temas":
+    noticias_filtradas = [n for n in noticias_filtradas if n["tema"] == tema_sel]
 
 if regiao_sel != "Todas as Regiões":
     noticias_filtradas = [n for n in noticias_filtradas if n["regiao"] == regiao_sel]
+
 if busca:
     noticias_filtradas = [n for n in noticias_filtradas if busca.lower() in n["titulo"].lower() or busca.lower() in n["resumo"].lower()]
 
 # ==============================================================================
 # 10. GRADE DE NOTÍCIAS COM BADGES E ÍCONES MODERNOS
 # ==============================================================================
-st.markdown("### 📰 Acervo de Documentos & Notícias")
+str_lit.markdown("### 📰 Acervo de Documentos & Discursos Diplomáticos")
 
 if len(noticias_filtradas) > 0:
-    grid_cols = st.columns(2)
+    grid_cols = str_lit.columns(2)
     for idx, item in enumerate(noticias_filtradas):
         with grid_cols[idx % 2]:
             badge_orgao = render_badge(item['orgao'])
             badge_tipo = render_badge(item['tipo'])
             
-            st.markdown(f"""
+            str_lit.markdown(f"""
                 <div class="news-card">
                     <div class="card-img-container">
                         <img src="{item['imagem']}" class="card-img" alt="Capa" />
                     </div>
                     <div class="card-body">
                         <div>{badge_orgao}{badge_tipo}</div>
-                        <div style="font-size: 11px; color: #777777; margin-bottom: 6px; font-weight: 500;">📍 {item['regiao']}</div>
+                        <div style="font-size: 11px; color: #555555; margin-bottom: 6px; font-weight: 600;">🏷️ Tema: {item['tema']} | 📍 {item['regiao']}</div>
                         <div class="card-title">{item['titulo']}</div>
                         <div class="card-excerpt">{item['resumo']}</div>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
             
-            if st.button(f"📖 LER COMPLETO", key=f"read_grid_{idx}", use_container_width=True):
+            if str_lit.button(f"📖 LER COMPLETO", key=f"read_grid_{idx}", use_container_width=True):
                 if user_data["plan"] == "free":
                     user_data["access_count"] += 1
-                st.markdown(f'<meta http-equiv="refresh" content="0; url={item["link"]}">', unsafe_allow_html=True)
-                st.rerun()
+                str_lit.markdown(f'<meta http-equiv="refresh" content="0; url={item["link"]}">', unsafe_allow_html=True)
+                str_lit.rerun()
 else:
-    st.info("Nenhum documento encontrado com os filtros atuais.")
+    str_lit.info("Nenhum documento ou discurso encontrado com os filtros atuais.")
